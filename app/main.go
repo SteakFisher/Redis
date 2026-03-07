@@ -10,6 +10,7 @@ import (
 )
 
 func main() {
+
 	var wg sync.WaitGroup
 
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
@@ -22,9 +23,8 @@ func main() {
 	}
 	wg.Add(1)
 
-	clientChan := make(chan net.Conn)
-	clients := make([]net.Conn, 5)
-	go client.AcceptClients(l, clients, clientChan)
+	clients := make([]net.Conn, 0)
+	go client.AcceptClients(l, clients)
 
 	wg.Wait()
 }

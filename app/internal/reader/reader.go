@@ -3,10 +3,13 @@ package reader
 import (
 	"fmt"
 	"net"
+
+	"github.com/SteakFisher/Redis/app/internal/executer"
+	"github.com/SteakFisher/Redis/app/internal/parser"
 )
 
 func Read(conn net.Conn) {
-	bytes := make([]byte, 100)
+	bytes := make([]byte, 1000)
 
 	for {
 		_, err := conn.Read(bytes)
@@ -25,7 +28,13 @@ func Read(conn net.Conn) {
 			fmt.Printf("%c", byteString[i])
 		}
 
-		conn.Write([]byte("+PONG\r\n"))
+		_, parsedArray := parser.Parse(bytes)
+
+		fmt.Println(parsedArray)
+
+		ret := executer.Execute(parsedArray)
+
+		conn.Write(ret)
 	}
 
 }

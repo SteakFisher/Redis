@@ -8,7 +8,7 @@ import (
 	"github.com/SteakFisher/Redis/app/internal/reader"
 )
 
-func AcceptClients(l net.Listener, clients []net.Conn, clientChan chan net.Conn) {
+func AcceptClients(l net.Listener, clients []net.Conn) {
 	for {
 		conn, err := l.Accept()
 		fmt.Println("Client Connected")
