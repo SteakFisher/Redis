@@ -21,16 +21,7 @@ func Read(conn net.Conn) {
 			break
 		}
 
-		byteString := string(bytes)
-		fmt.Println(byteString)
-
-		for i := 0; i < len(byteString); i++ {
-			fmt.Printf("%c", byteString[i])
-		}
-
 		_, parsedArray := parser.Parse(bytes)
-
-		fmt.Println(parsedArray)
 
 		ret := executer.Execute(parsedArray)
 

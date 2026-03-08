@@ -25,15 +25,14 @@ type RESP struct {
 // "*2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n"
 
 func Parse(b []byte) (int, []RESP) {
-	// fmt.Println(string(b))
-
 	var resp RESP
 
 	i := 1
 	resp.Type = Type(b[0])
 	i += jumpToEOL(b[i:])
 
-	if resp.Type == Array {
+	switch resp.Type {
+	case Array:
 		var err error
 
 		resp.Count, err = strconv.Atoi(string(b[1 : i-2]))
@@ -51,7 +50,7 @@ func Parse(b []byte) (int, []RESP) {
 		}
 
 		return i, respArray
-	} else if resp.Type == Bulk {
+	case Bulk:
 		var err error
 
 		resp.Count, err = strconv.Atoi(string(b[1 : i-2]))
@@ -65,9 +64,10 @@ func Parse(b []byte) (int, []RESP) {
 
 		respArray := []RESP{resp}
 		return i + resp.Count + 2, respArray
+	default:
+		respArray := []RESP{resp}
+		return 8, respArray
 	}
-	respArray := []RESP{resp}
-	return 8, respArray
 }
 
 func jumpToEOL(b []byte) int {
