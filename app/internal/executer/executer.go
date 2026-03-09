@@ -14,26 +14,54 @@ func Execute(parsed []parser.RESP) []byte {
 	i := 0
 
 	fmt.Println(parsed)
+	arrayLen := len(parsed)
 
-	for i < len(parsed) {
+	for i < arrayLen {
 		cmd := string(parsed[i].Data)
 
 		i++
 		switch strings.ToLower(cmd) {
 		case "echo":
-			i++
-			return bulk(string(parsed[i-1].Data))
+			return bulk(string(parsed[i].Data))
 		case "ping":
 			return simple("PONG")
 		case "set":
-			store.Set(string(parsed[i].Data), string(parsed[i+1].Data))
+			key := string(parsed[i].Data)
+			i++
+			value := string(parsed[i].Data)
+			i++
+			PX := -1
+
+			if i < arrayLen {
+				switch strings.ToLower(string(parsed[i].Data)) {
+				case "px":
+					i++
+					var err error
+					PX, err = strconv.Atoi(string(parsed[i].Data))
+
+					if err != nil {
+						return error_bulk()
+					}
+				case "ex":
+					i++
+					EX, err := strconv.Atoi(string(parsed[i].Data))
+
+					if err != nil {
+						return error_bulk()
+					}
+
+					PX = EX * 1000
+				}
+			}
+
+			store.Set(key, value, PX)
 			i += 1
 			return simple("OK")
 		case "get":
 			val, err := store.Get(string(parsed[i].Data))
 
 			if err != nil {
-				return bulk("-1")
+				return error_bulk()
 			}
 
 			return bulk(val)
@@ -49,6 +77,10 @@ func Execute(parsed []parser.RESP) []byte {
 
 func bulk(str string) []byte {
 	return []byte(fmt.Sprintf("$%s\r\n%s\r\n", strconv.Itoa(len(str)), str))
+}
+
+func error_bulk() []byte {
+	return []byte("$-1\r\n")
 }
 
 func simple(text string) []byte {
