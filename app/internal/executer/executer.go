@@ -2,7 +2,9 @@ package executer
 
 import (
 	"fmt"
+	"iter"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -11,43 +13,85 @@ import (
 )
 
 func Execute(parsed []parser.RESP) []byte {
-	i := 0
+	iterator := slices.Values(parsed)
+	next, stop := iter.Pull(iterator)
 
-	fmt.Println(parsed)
-	arrayLen := len(parsed)
+	defer stop()
 
-	for i < arrayLen {
-		cmd := string(parsed[i].Data)
+	for {
+		parsedValue, valid := next()
 
-		i++
+		if !valid {
+			fmt.Println("No value mentioned")
+			return bulk_error()
+		}
+
+		cmd := string(parsedValue.Data)
+
 		switch strings.ToLower(cmd) {
 		case "echo":
-			return bulk(string(parsed[i].Data))
+			parsedValue, valid := next()
+
+			if !valid {
+				fmt.Println("No echo message mentioned mentioned")
+				return bulk_error()
+			}
+
+			return bulk(string(parsedValue.Data))
 		case "ping":
 			return simple("PONG")
 		case "set":
-			key := string(parsed[i].Data)
-			i++
-			value := string(parsed[i].Data)
-			i++
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No key mentioned in set cmd")
+				return bulk_error()
+			}
+
+			key := string(parsedValue.Data)
+
+			parsedValue, valid := next()
+
+			if !valid {
+				fmt.Println("No value mentioned in set cmd")
+				return bulk_error()
+			}
+
+			value := string(parsedValue.Data)
+
+			parsedValue, valid = next()
 			PX := -1
 
-			if i < arrayLen {
-				switch strings.ToLower(string(parsed[i].Data)) {
+			// Optional parameters, PX EX etc.
+			if valid {
+				switch strings.ToLower(string(parsedValue.Data)) {
 				case "px":
-					i++
 					var err error
-					PX, err = strconv.Atoi(string(parsed[i].Data))
+
+					parsedValue, valid := next()
+
+					if !valid {
+						fmt.Println("No PX value mentioned in set cmd")
+						return bulk_error()
+					}
+
+					PX, err = strconv.Atoi(string(parsedValue.Data))
 
 					if err != nil {
-						return error_bulk()
+						return bulk_error()
 					}
 				case "ex":
-					i++
-					EX, err := strconv.Atoi(string(parsed[i].Data))
+					parsedValue, valid := next()
+
+					if !valid {
+						fmt.Println("No EX value mentioned in set cmd")
+						return bulk_error()
+					}
+
+					EX, err := strconv.Atoi(string(parsedValue.Data))
 
 					if err != nil {
-						return error_bulk()
+						return bulk_error()
 					}
 
 					PX = EX * 1000
@@ -55,13 +99,28 @@ func Execute(parsed []parser.RESP) []byte {
 			}
 
 			store.Set(key, value, PX)
-			i += 1
-			return simple("OK")
+
+			parsedValue, valid = next()
+
+			if valid {
+				fmt.Println("Should've parsed through everything by now")
+				return bulk_error()
+			} else {
+				return simple("OK")
+			}
+
 		case "get":
-			val, err := store.Get(string(parsed[i].Data))
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No key mentioned in get cmd")
+				return bulk_error()
+			}
+
+			val, err := store.Get(string(parsedValue.Data))
 
 			if err != nil {
-				return error_bulk()
+				return bulk_error()
 			}
 
 			return bulk(val)
@@ -70,16 +129,13 @@ func Execute(parsed []parser.RESP) []byte {
 			os.Exit(1)
 		}
 	}
-	fmt.Println("Unreachable execution code")
-	os.Exit(1)
-	return []byte{}
 }
 
 func bulk(str string) []byte {
 	return []byte(fmt.Sprintf("$%s\r\n%s\r\n", strconv.Itoa(len(str)), str))
 }
 
-func error_bulk() []byte {
+func bulk_error() []byte {
 	return []byte("$-1\r\n")
 }
 
