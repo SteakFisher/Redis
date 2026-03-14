@@ -145,12 +145,71 @@ func Execute(parsed []parser.RESP) []byte {
 			arrayLen := store.SetArray(key, val)
 
 			return integer(arrayLen)
+		case "lrange":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No list key mentioned in rpush cmd")
+				return bulk_error()
+			}
+
+			key := string(parsedValue.Data)
+
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("Start value not mentioned")
+				return bulk_error()
+			}
+
+			start, err := strconv.Atoi(string(parsedValue.Data))
+
+			if err != nil {
+				fmt.Println("Start range wasn't an int")
+			}
+
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("Stop value not mentioned")
+				return bulk_error()
+			}
+
+			stop, err := strconv.Atoi(string(parsedValue.Data))
+
+			if err != nil {
+				fmt.Println("Stop range wasn't an int")
+			}
+
+			newArr, err := store.Range(key, start, stop)
+			fmt.Println(newArr)
+
+			if err != nil {
+				fmt.Println(err)
+				return bulk_error()
+			}
+
+			return array(newArr)
 
 		default:
 			fmt.Println("Unknown Execution Cmd")
 			os.Exit(1)
 		}
 	}
+}
+
+func array(arr []string) []byte {
+	if arr == nil {
+		return []byte("*0\r\n")
+	}
+
+	final := []byte(fmt.Sprintf("*%d\r\n", len(arr)))
+
+	for i := 0; i < len(arr); i++ {
+		final = append(final, bulk(arr[i])...)
+	}
+
+	return final
 }
 
 func bulk(str string) []byte {
