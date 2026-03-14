@@ -74,3 +74,21 @@ func Length(key string) int {
 	}
 	return len(val.Array)
 }
+
+func Pop(key string, num int) ([]string, error) {
+	val := redis_store[key]
+
+	if val.Array == nil {
+		return []string{}, fmt.Errorf("Key doesn't exist")
+	}
+
+	newArr := val.Array[num:]
+	poppedElems := val.Array[0:num]
+
+	redis_store[key] = RedisValue{
+		Type:  Array,
+		Array: newArr,
+	}
+
+	return poppedElems, nil
+}

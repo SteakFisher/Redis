@@ -219,6 +219,41 @@ func Execute(parsed []parser.RESP) []byte {
 			key := string(parsedValue.Data)
 
 			return integer(store.Length(key))
+		case "lpop":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No list key mentioned in lpop cmd")
+				return bulk_error()
+			}
+
+			key := string(parsedValue.Data)
+			num := 1
+
+			parsedValue, valid = next()
+
+			if valid {
+				var err error
+				num, err = strconv.Atoi(string(parsedValue.Data))
+
+				if err != nil {
+					fmt.Println("Pop length isn't a number")
+					return bulk_error()
+				}
+			}
+
+			elems, err := store.Pop(key, num)
+
+			if err != nil {
+				fmt.Println("List key doesn't exist")
+				return bulk_error()
+			}
+
+			if len(elems) == 1 {
+				return bulk(elems[0])
+			} else {
+				return array(elems)
+			}
 
 		default:
 			fmt.Println("Unknown Execution Cmd")
