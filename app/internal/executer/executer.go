@@ -142,7 +142,29 @@ func Execute(parsed []parser.RESP) []byte {
 				fmt.Println("No list val provided in rpush cmd")
 			}
 
-			arrayLen := store.SetArray(key, val)
+			arrayLen := store.SetArray(key, val, false)
+
+			return integer(arrayLen)
+		case "lpush":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No list key mentioned in rpush cmd")
+				return bulk_error()
+			}
+
+			key := string(parsedValue.Data)
+			val := make([]string, 0)
+
+			for parsedValue, valid = next(); valid; parsedValue, valid = next() {
+				val = append([]string{string(parsedValue.Data)}, val...)
+			}
+
+			if len(val) == 0 {
+				fmt.Println("No list val provided in rpush cmd")
+			}
+
+			arrayLen := store.SetArray(key, val, true)
 
 			return integer(arrayLen)
 		case "lrange":

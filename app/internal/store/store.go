@@ -36,10 +36,16 @@ func SetString(key string, val string, PX int) {
 	}
 }
 
-func SetArray(key string, val []string) int {
+func SetArray(key string, val []string, prepend bool) int {
 	redisVal := redis_store[key]
 
-	newArr := append(redisVal.Array, val...)
+	var newArr []string
+
+	if prepend {
+		newArr = append(val, redisVal.Array...)
+	} else {
+		newArr = append(redisVal.Array, val...)
+	}
 
 	redis_store[key] = RedisValue{
 		Type:   Array,
