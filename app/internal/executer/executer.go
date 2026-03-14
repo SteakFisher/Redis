@@ -98,7 +98,7 @@ func Execute(parsed []parser.RESP) []byte {
 				}
 			}
 
-			store.Set(key, value, PX)
+			store.SetString(key, value, PX)
 
 			parsedValue, valid = next()
 
@@ -108,7 +108,6 @@ func Execute(parsed []parser.RESP) []byte {
 			} else {
 				return simple("OK")
 			}
-
 		case "get":
 			parsedValue, valid = next()
 
@@ -124,6 +123,29 @@ func Execute(parsed []parser.RESP) []byte {
 			}
 
 			return bulk(val)
+		case "rpush":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No list key mentioned in rpush cmd")
+				return bulk_error()
+			}
+
+			key := string(parsedValue.Data)
+			val := make([]string, 0)
+
+			for parsedValue, valid = next(); valid; parsedValue, valid = next() {
+				val = append(val, string(parsedValue.Data))
+			}
+
+			if len(val) == 0 {
+				fmt.Println("No list val provided in rpush cmd")
+			}
+
+			arrayLen := store.SetArray(key, val)
+
+			return integer(arrayLen)
+
 		default:
 			fmt.Println("Unknown Execution Cmd")
 			os.Exit(1)
@@ -141,4 +163,10 @@ func bulk_error() []byte {
 
 func simple(text string) []byte {
 	return []byte(fmt.Sprintf("+%s\r\n", text))
+}
+
+func integer(text int) []byte {
+	val := []byte(fmt.Sprintf(":%d\r\n", text))
+	fmt.Println(val, string(val))
+	return val
 }

@@ -5,14 +5,23 @@ import (
 	"time"
 )
 
+type RedisValueType int
+
+const (
+	String RedisValueType = iota
+	Array
+)
+
 type RedisValue struct {
-	Value  string
+	Type   RedisValueType
+	String string
+	Array  []string
 	Expiry time.Time
 }
 
 var redis_store = make(map[string]RedisValue)
 
-func Set(key string, val string, PX int) {
+func SetString(key string, val string, PX int) {
 	expiryTime := time.Time{}
 
 	if PX != -1 {
@@ -21,15 +30,33 @@ func Set(key string, val string, PX int) {
 	}
 
 	redis_store[key] = RedisValue{
-		Value:  val,
+		Type:   String,
+		String: val,
 		Expiry: expiryTime,
 	}
+}
+
+func SetArray(key string, val []string) int {
+	redisVal := redis_store[key]
+
+	newArr := append(redisVal.Array, val...)
+
+	redis_store[key] = RedisValue{
+		Type:   Array,
+		Array:  newArr,
+		Expiry: time.Time{},
+	}
+
+	fmt.Println("Key", key)
+	fmt.Print("Len", val)
+
+	return len(newArr)
 }
 
 func Get(key string) (string, error) {
 	val := redis_store[key]
 
-	if val.Value == "" {
+	if val.String == "" {
 		return "", fmt.Errorf("Key doesn't exist: %s", key)
 	}
 
@@ -41,5 +68,5 @@ func Get(key string) (string, error) {
 		}
 	}
 
-	return val.Value, nil
+	return val.String, nil
 }
