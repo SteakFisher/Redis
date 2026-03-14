@@ -23,12 +23,13 @@ func Execute(parsed []parser.RESP) []byte {
 
 		if !valid {
 			fmt.Println("No value mentioned")
-			return bulk_error()
+			return simple("OK")
 		}
 
 		cmd := string(parsedValue.Data)
 
 		switch strings.ToLower(cmd) {
+		// Health check cmds
 		case "echo":
 			parsedValue, valid := next()
 
@@ -40,6 +41,8 @@ func Execute(parsed []parser.RESP) []byte {
 			return bulk(string(parsedValue.Data))
 		case "ping":
 			return simple("PONG")
+
+		// Map cmds
 		case "set":
 			parsedValue, valid = next()
 
@@ -99,15 +102,6 @@ func Execute(parsed []parser.RESP) []byte {
 			}
 
 			store.SetString(key, value, PX)
-
-			parsedValue, valid = next()
-
-			if valid {
-				fmt.Println("Should've parsed through everything by now")
-				return bulk_error()
-			} else {
-				return simple("OK")
-			}
 		case "get":
 			parsedValue, valid = next()
 
@@ -123,6 +117,8 @@ func Execute(parsed []parser.RESP) []byte {
 			}
 
 			return bulk(val)
+
+		// List cmds
 		case "rpush":
 			parsedValue, valid = next()
 
@@ -212,6 +208,17 @@ func Execute(parsed []parser.RESP) []byte {
 			}
 
 			return array(newArr)
+		case "llen":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No list key mentioned in llen cmd")
+				return bulk_error()
+			}
+
+			key := string(parsedValue.Data)
+
+			return integer(store.Length(key))
 
 		default:
 			fmt.Println("Unknown Execution Cmd")

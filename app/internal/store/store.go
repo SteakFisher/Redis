@@ -114,3 +114,12 @@ func Range(key string, start int, stop int) ([]string, error) {
 
 	return val.Array[start:stop], nil
 }
+
+func Length(key string) int {
+	val := redis_store[key]
+
+	if val.Array == nil {
+		return 0
+	}
+	return len(val.Array)
+}
