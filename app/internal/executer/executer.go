@@ -16,15 +16,17 @@ func Execute(parsed []parser.RESP) []byte {
 	iterator := slices.Values(parsed)
 	next, stop := iter.Pull(iterator)
 
+	Redis := store.Init()
+
 	defer stop()
 
 	for {
 		parsedValue, valid := next()
 
-		if !valid {
-			fmt.Println("No value mentioned")
-			return simple("OK")
-		}
+		// if !valid {
+		// 	fmt.Println("No value mentioned")
+		// 	return simple("OK")
+		// }
 
 		cmd := string(parsedValue.Data)
 
@@ -101,7 +103,8 @@ func Execute(parsed []parser.RESP) []byte {
 				}
 			}
 
-			store.SetString(key, value, PX)
+			Redis.SetString(key, value, PX)
+			return simple("OK")
 		case "get":
 			parsedValue, valid = next()
 
@@ -110,9 +113,10 @@ func Execute(parsed []parser.RESP) []byte {
 				return bulk_error()
 			}
 
-			val, err := store.Get(string(parsedValue.Data))
+			val, err := Redis.Get(string(parsedValue.Data))
 
 			if err != nil {
+				fmt.Println(err)
 				return bulk_error()
 			}
 
@@ -138,7 +142,7 @@ func Execute(parsed []parser.RESP) []byte {
 				fmt.Println("No list val provided in rpush cmd")
 			}
 
-			arrayLen := store.SetArray(key, val, false)
+			arrayLen := Redis.SetArray(key, val, false)
 
 			return integer(arrayLen)
 		case "lpush":
@@ -160,7 +164,7 @@ func Execute(parsed []parser.RESP) []byte {
 				fmt.Println("No list val provided in rpush cmd")
 			}
 
-			arrayLen := store.SetArray(key, val, true)
+			arrayLen := Redis.SetArray(key, val, true)
 
 			return integer(arrayLen)
 		case "lrange":
@@ -199,7 +203,7 @@ func Execute(parsed []parser.RESP) []byte {
 				fmt.Println("Stop range wasn't an int")
 			}
 
-			newArr, err := store.Range(key, start, stop)
+			newArr, err := Redis.Range(key, start, stop)
 			fmt.Println(newArr)
 
 			if err != nil {
@@ -218,7 +222,7 @@ func Execute(parsed []parser.RESP) []byte {
 
 			key := string(parsedValue.Data)
 
-			return integer(store.Length(key))
+			return integer(Redis.Length(key))
 		case "lpop":
 			parsedValue, valid = next()
 
@@ -242,7 +246,7 @@ func Execute(parsed []parser.RESP) []byte {
 				}
 			}
 
-			elems, err := store.Pop(key, num)
+			elems, err := Redis.Pop(key, num)
 
 			if err != nil {
 				fmt.Println("List key doesn't exist")

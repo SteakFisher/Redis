@@ -5,8 +5,8 @@ import (
 	"time"
 )
 
-func SetArray(key string, val []string, prepend bool) int {
-	redisVal := redis_store[key]
+func (r Redis) SetArray(key string, val []string, prepend bool) int {
+	redisVal := r.m[key]
 
 	var newArr []string
 
@@ -16,7 +16,7 @@ func SetArray(key string, val []string, prepend bool) int {
 		newArr = append(redisVal.Array, val...)
 	}
 
-	redis_store[key] = RedisValue{
+	r.m[key] = RedisValue{
 		Type:   Array,
 		Array:  newArr,
 		Expiry: time.Time{},
@@ -28,8 +28,8 @@ func SetArray(key string, val []string, prepend bool) int {
 	return len(newArr)
 }
 
-func Range(key string, start int, stop int) ([]string, error) {
-	val := redis_store[key]
+func (r Redis) Range(key string, start int, stop int) ([]string, error) {
+	val := r.m[key]
 
 	if val.Array == nil {
 		return []string{}, nil
@@ -66,8 +66,8 @@ func Range(key string, start int, stop int) ([]string, error) {
 	return val.Array[start:stop], nil
 }
 
-func Length(key string) int {
-	val := redis_store[key]
+func (r Redis) Length(key string) int {
+	val := r.m[key]
 
 	if val.Array == nil {
 		return 0
@@ -75,8 +75,8 @@ func Length(key string) int {
 	return len(val.Array)
 }
 
-func Pop(key string, num int) ([]string, error) {
-	val := redis_store[key]
+func (r Redis) Pop(key string, num int) ([]string, error) {
+	val := r.m[key]
 
 	if val.Array == nil {
 		return []string{}, fmt.Errorf("Key doesn't exist")
@@ -85,7 +85,7 @@ func Pop(key string, num int) ([]string, error) {
 	newArr := val.Array[num:]
 	poppedElems := val.Array[0:num]
 
-	redis_store[key] = RedisValue{
+	r.m[key] = RedisValue{
 		Type:  Array,
 		Array: newArr,
 	}

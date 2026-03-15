@@ -13,15 +13,31 @@ const (
 )
 
 type RedisValue struct {
+	// mu sync.Mutex
+
 	Type   RedisValueType
 	String string
 	Array  []string
 	Expiry time.Time
 }
 
-var redis_store = make(map[string]RedisValue)
+type Redis struct {
+	m map[string]RedisValue
+}
 
-func SetString(key string, val string, PX int) {
+var redis_store Redis
+
+func Init() Redis {
+	if redis_store.m == nil {
+		redis_store = Redis{
+			m: make(map[string]RedisValue),
+		}
+	}
+
+	return redis_store
+}
+
+func (r Redis) SetString(key string, val string, PX int) {
 	expiryTime := time.Time{}
 
 	if PX != -1 {
@@ -29,15 +45,15 @@ func SetString(key string, val string, PX int) {
 		expiryTime = now.Add(time.Millisecond * time.Duration(PX))
 	}
 
-	redis_store[key] = RedisValue{
+	r.m[key] = RedisValue{
 		Type:   String,
 		String: val,
 		Expiry: expiryTime,
 	}
 }
 
-func Get(key string) (string, error) {
-	val := redis_store[key]
+func (r Redis) Get(key string) (string, error) {
+	val := r.m[key]
 
 	if val.String == "" {
 		return "", fmt.Errorf("Key doesn't exist: %s", key)
@@ -46,10 +62,9 @@ func Get(key string) (string, error) {
 	if !val.Expiry.IsZero() {
 		compare := time.Now().UTC().Compare(val.Expiry)
 		if compare == 1 || compare == 0 {
-			delete(redis_store, key)
+			delete(r.m, key)
 			return "", fmt.Errorf("Key has expired: %s", key)
 		}
 	}
-
 	return val.String, nil
 }
