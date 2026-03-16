@@ -17,6 +17,9 @@ func (r *Redis) SetArray(key string, val []string, prepend bool) int {
 		}
 	}
 
+	redisVal.mu.Lock()
+	defer redisVal.mu.Unlock()
+
 	if prepend {
 		newArr = append(val, redisVal.Array...)
 	} else {
@@ -28,9 +31,6 @@ func (r *Redis) SetArray(key string, val []string, prepend bool) int {
 		Array:  newArr,
 		Expiry: time.Time{},
 	}
-
-	fmt.Println("Key", key)
-	fmt.Print("Len", val)
 
 	return len(newArr)
 }
@@ -105,6 +105,9 @@ func (r *Redis) Pop(key string, num int) ([]string, error) {
 			Array: make([]string, 0),
 		}
 	}
+
+	val.mu.Lock()
+	defer val.mu.Unlock()
 
 	if val.Array == nil {
 		return []string{}, fmt.Errorf("Key doesn't exist")
