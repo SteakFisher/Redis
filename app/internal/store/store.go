@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"sync"
 	"time"
 )
 
@@ -13,7 +14,7 @@ const (
 )
 
 type RedisValue struct {
-	// mu sync.Mutex
+	mu sync.Mutex
 
 	Type   RedisValueType
 	String string
@@ -22,22 +23,22 @@ type RedisValue struct {
 }
 
 type Redis struct {
-	m map[string]RedisValue
+	m map[string]*RedisValue
 }
 
 var redis_store Redis
 
-func Init() Redis {
+func Init() *Redis {
 	if redis_store.m == nil {
 		redis_store = Redis{
-			m: make(map[string]RedisValue),
+			m: make(map[string]*RedisValue),
 		}
 	}
 
-	return redis_store
+	return &redis_store
 }
 
-func (r Redis) SetString(key string, val string, PX int) {
+func (r *Redis) SetString(key string, val string, PX int) {
 	expiryTime := time.Time{}
 
 	if PX != -1 {
@@ -45,14 +46,14 @@ func (r Redis) SetString(key string, val string, PX int) {
 		expiryTime = now.Add(time.Millisecond * time.Duration(PX))
 	}
 
-	r.m[key] = RedisValue{
+	r.m[key] = &RedisValue{
 		Type:   String,
 		String: val,
 		Expiry: expiryTime,
 	}
 }
 
-func (r Redis) Get(key string) (string, error) {
+func (r *Redis) Get(key string) (string, error) {
 	val := r.m[key]
 
 	if val.String == "" {
