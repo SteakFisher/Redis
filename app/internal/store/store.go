@@ -22,8 +22,15 @@ type RedisValue struct {
 	Expiry time.Time
 }
 
+type RedisChan struct {
+	mu sync.Mutex
+
+	Array []chan int
+}
+
 type Redis struct {
 	m map[string]*RedisValue
+	c map[string]*RedisChan
 }
 
 var redis_store Redis
@@ -32,6 +39,7 @@ func Init() *Redis {
 	if redis_store.m == nil {
 		redis_store = Redis{
 			m: make(map[string]*RedisValue),
+			c: make(map[string]*RedisChan),
 		}
 	}
 

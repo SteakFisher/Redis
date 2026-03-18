@@ -32,6 +32,25 @@ func (r *Redis) SetArray(key string, val []string, prepend bool) int {
 		Expiry: time.Time{},
 	}
 
+	chanVal := r.c[key]
+	fmt.Println(chanVal)
+
+	if chanVal != nil {
+		chanVal.mu.Lock()
+
+		ch := chanVal.Array[0]
+
+		if len(chanVal.Array) > 1 {
+			chanVal.Array = chanVal.Array[1:]
+		} else {
+			chanVal.Array = nil
+		}
+
+		chanVal.mu.Unlock()
+
+		ch <- 0
+	}
+
 	return len(newArr)
 }
 
@@ -99,19 +118,12 @@ func (r Redis) Length(key string) int {
 func (r *Redis) Pop(key string, num int) ([]string, error) {
 	val := r.m[key]
 
-	if val == nil {
-		val = &RedisValue{
-			Type:  Array,
-			Array: make([]string, 0),
-		}
+	if val == nil || len(val.Array) == 0 {
+		return []string{}, fmt.Errorf("Key doesn't exist or is empty")
 	}
 
 	val.mu.Lock()
 	defer val.mu.Unlock()
-
-	if val.Array == nil {
-		return []string{}, fmt.Errorf("Key doesn't exist")
-	}
 
 	newArr := val.Array[num:]
 	poppedElems := val.Array[0:num]
@@ -122,4 +134,39 @@ func (r *Redis) Pop(key string, num int) ([]string, error) {
 	}
 
 	return poppedElems, nil
+}
+
+func (r *Redis) BPop(key string, time int) ([]string, error) {
+	arr, err := r.Pop(key, 1)
+
+	if err == nil {
+		return append([]string{key}, arr...), err
+	}
+
+	chanVal := r.c[key]
+
+	if chanVal == nil {
+		chanVal = &RedisChan{
+			Array: nil,
+		}
+	}
+
+	chanVal.mu.Lock()
+
+	ch := make(chan int)
+	chanVal.Array = append(chanVal.Array, ch)
+
+	r.c[key] = chanVal
+
+	chanVal.mu.Unlock()
+
+	<-ch
+
+	arr, err = r.Pop(key, 1)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return append([]string{key}, arr...), err
 }

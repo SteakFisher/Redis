@@ -258,6 +258,38 @@ func Execute(parsed []parser.RESP) []byte {
 			} else {
 				return array(elems)
 			}
+		case "blpop":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No list key mentioned in blpop cmd")
+				return bulk_error()
+			}
+
+			key := string(parsedValue.Data)
+
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No list key mentioned in blpop cmd")
+				return bulk_error()
+			}
+
+			num, err := strconv.Atoi(string(parsedValue.Data))
+
+			if err != nil {
+				fmt.Printf("Timeout value is not a number.")
+				return bulk_error()
+			}
+
+			val, err := Redis.BPop(key, num)
+
+			if err != nil {
+				fmt.Println(err)
+				return bulk_error()
+			}
+
+			return array(val)
 
 		default:
 			fmt.Println("Unknown Execution Cmd")
