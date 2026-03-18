@@ -322,7 +322,7 @@ func bulk_error() []byte {
 }
 
 func null_array() []byte {
-	return []byte(fmt.Sprintf("*-1\r\n"))
+	return []byte("*-1\r\n")
 }
 
 func simple(text string) []byte {
