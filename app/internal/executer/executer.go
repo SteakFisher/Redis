@@ -275,7 +275,8 @@ func Execute(parsed []parser.RESP) []byte {
 				return bulk_error()
 			}
 
-			num, err := strconv.Atoi(string(parsedValue.Data))
+			numFloat, err := strconv.ParseFloat(string(parsedValue.Data), 5)
+			num := int(numFloat * 1000)
 
 			if err != nil {
 				fmt.Printf("Timeout value is not a number.")
@@ -286,7 +287,7 @@ func Execute(parsed []parser.RESP) []byte {
 
 			if err != nil {
 				fmt.Println(err)
-				return bulk_error()
+				return null_array()
 			}
 
 			return array(val)
@@ -318,6 +319,10 @@ func bulk(str string) []byte {
 
 func bulk_error() []byte {
 	return []byte("$-1\r\n")
+}
+
+func null_array() []byte {
+	return []byte(fmt.Sprintf("*-1\r\n"))
 }
 
 func simple(text string) []byte {

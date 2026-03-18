@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"slices"
 	"time"
 )
 
@@ -136,7 +137,7 @@ func (r *Redis) Pop(key string, num int) ([]string, error) {
 	return poppedElems, nil
 }
 
-func (r *Redis) BPop(key string, time int) ([]string, error) {
+func (r *Redis) BPop(key string, waitTime int) ([]string, error) {
 	arr, err := r.Pop(key, 1)
 
 	if err == nil {
@@ -154,19 +155,40 @@ func (r *Redis) BPop(key string, time int) ([]string, error) {
 	chanVal.mu.Lock()
 
 	ch := make(chan int)
+	defer close(ch)
 	chanVal.Array = append(chanVal.Array, ch)
 
 	r.c[key] = chanVal
-
 	chanVal.mu.Unlock()
 
-	<-ch
+	var timerChan <-chan time.Time
 
-	arr, err = r.Pop(key, 1)
-
-	if err != nil {
-		return nil, err
+	if waitTime > 0 {
+		timer := time.NewTimer(time.Millisecond * time.Duration(waitTime))
+		timerChan = timer.C
 	}
 
-	return append([]string{key}, arr...), err
+	select {
+	case <-ch:
+		arr, err = r.Pop(key, 1)
+
+		if err != nil {
+			return nil, err
+		}
+
+		return append([]string{key}, arr...), err
+	case <-timerChan:
+		chanVal.mu.Lock()
+
+		ch := make(chan int)
+
+		chanVal.Array = slices.DeleteFunc(chanVal.Array, func(retChannel chan int) bool {
+			return retChannel == ch
+		})
+
+		r.c[key] = chanVal
+		chanVal.mu.Unlock()
+
+		return nil, fmt.Errorf("TIMEOUT")
+	}
 }
