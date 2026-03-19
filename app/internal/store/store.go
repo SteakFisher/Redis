@@ -11,15 +11,20 @@ type RedisValueType int
 const (
 	String RedisValueType = iota
 	List
+	Stream
 )
 
 type RedisValue struct {
 	mu sync.Mutex
 
-	Type   RedisValueType
+	Type RedisValueType
+
 	String string
-	Array  []string
 	Expiry time.Time
+
+	Array *[]string
+
+	Stream *[]*map[string]string
 }
 
 type RedisChan struct {
@@ -58,6 +63,8 @@ func (r *Redis) Type(key string) (string, error) {
 		return "string", nil
 	case List:
 		return "list", nil
+	case Stream:
+		return "stream", nil
 	default:
 		return "", fmt.Errorf("Unknown DataType")
 	}

@@ -308,6 +308,45 @@ func Execute(parsed []parser.RESP) []byte {
 
 			return array(val)
 
+		// Stream cmds
+		case "xadd":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No stream key mentioned in xadd cmd")
+				return bulk_error()
+			}
+
+			streamKey := string(parsedValue.Data)
+
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No stream key value mentioned in xadd cmd")
+				return bulk_error()
+			}
+
+			entryID := string(parsedValue.Data)
+
+			keyArr := []string{}
+			valArr := []string{}
+
+			for parsedValue, valid = next(); valid; parsedValue, valid = next() {
+				keyArr = append(keyArr, string(parsedValue.Data))
+
+				parsedValue, valid = next()
+				if !valid {
+					fmt.Println("No corresponding value for key: ", keyArr[len(keyArr)-1])
+					return bulk_error()
+				}
+
+				valArr = append(valArr, string(parsedValue.Data))
+			}
+
+			id := Redis.StreamAdd(streamKey, entryID, keyArr, valArr)
+
+			return bulk(id)
+
 		default:
 			fmt.Println("Unknown Execution Cmd")
 			os.Exit(1)
