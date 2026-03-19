@@ -23,11 +23,6 @@ func Execute(parsed []parser.RESP) []byte {
 	for {
 		parsedValue, valid := next()
 
-		// if !valid {
-		// 	fmt.Println("No value mentioned")
-		// 	return simple("OK")
-		// }
-
 		cmd := string(parsedValue.Data)
 
 		switch strings.ToLower(cmd) {
@@ -43,6 +38,27 @@ func Execute(parsed []parser.RESP) []byte {
 			return bulk(string(parsedValue.Data))
 		case "ping":
 			return simple("PONG")
+
+		// General cmds
+		case "type":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No list key mentioned in rpush cmd")
+				return bulk_error()
+			}
+
+			key := string(parsedValue.Data)
+
+			redisType, err := Redis.Type(key)
+
+			if err != nil {
+				fmt.Println(err)
+
+				return simple("none")
+			}
+
+			return simple(redisType)
 
 		// Map cmds
 		case "set":

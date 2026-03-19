@@ -13,7 +13,7 @@ func (r *Redis) SetArray(key string, val []string, prepend bool) int {
 
 	if redisVal == nil {
 		redisVal = &RedisValue{
-			Type:  Array,
+			Type:  List,
 			Array: make([]string, 0),
 		}
 	}
@@ -28,7 +28,7 @@ func (r *Redis) SetArray(key string, val []string, prepend bool) int {
 	}
 
 	r.m[key] = &RedisValue{
-		Type:   Array,
+		Type:   List,
 		Array:  newArr,
 		Expiry: time.Time{},
 	}
@@ -60,7 +60,7 @@ func (r *Redis) Range(key string, start int, stop int) ([]string, error) {
 
 	if val == nil {
 		val = &RedisValue{
-			Type:  Array,
+			Type:  List,
 			Array: make([]string, 0),
 		}
 	}
@@ -69,7 +69,7 @@ func (r *Redis) Range(key string, start int, stop int) ([]string, error) {
 		return []string{}, nil
 	}
 
-	if val.Type != Array {
+	if val.Type != List {
 		return []string{}, fmt.Errorf("Cannot find range of a non-array")
 	}
 
@@ -105,7 +105,7 @@ func (r Redis) Length(key string) int {
 
 	if val == nil {
 		val = &RedisValue{
-			Type:  Array,
+			Type:  List,
 			Array: make([]string, 0),
 		}
 	}
@@ -130,7 +130,7 @@ func (r *Redis) Pop(key string, num int) ([]string, error) {
 	poppedElems := val.Array[0:num]
 
 	r.m[key] = &RedisValue{
-		Type:  Array,
+		Type:  List,
 		Array: newArr,
 	}
 
@@ -155,7 +155,6 @@ func (r *Redis) BPop(key string, waitTime int) ([]string, error) {
 	chanVal.mu.Lock()
 
 	ch := make(chan int)
-	defer close(ch)
 	chanVal.Array = append(chanVal.Array, ch)
 
 	r.c[key] = chanVal
@@ -180,10 +179,12 @@ func (r *Redis) BPop(key string, waitTime int) ([]string, error) {
 	case <-timerChan:
 		chanVal.mu.Lock()
 
-		ch := make(chan int)
-
 		chanVal.Array = slices.DeleteFunc(chanVal.Array, func(retChannel chan int) bool {
-			return retChannel == ch
+			if retChannel == ch {
+				close(ch)
+				return true
+			}
+			return false
 		})
 
 		r.c[key] = chanVal
