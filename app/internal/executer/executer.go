@@ -148,7 +148,7 @@ func Execute(parsed []parser.RESP) []byte {
 			}
 
 			key := string(parsedValue.Data)
-			val := make([]string, 0)
+			val := make([]string, 0, 4)
 
 			for parsedValue, valid = next(); valid; parsedValue, valid = next() {
 				val = append(val, string(parsedValue.Data))
@@ -170,7 +170,7 @@ func Execute(parsed []parser.RESP) []byte {
 			}
 
 			key := string(parsedValue.Data)
-			val := make([]string, 0)
+			val := make([]string, 0, 4)
 
 			for parsedValue, valid = next(); valid; parsedValue, valid = next() {
 				val = append([]string{string(parsedValue.Data)}, val...)

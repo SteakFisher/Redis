@@ -9,19 +9,20 @@ import (
 )
 
 func Read(conn net.Conn) {
-	bytes := make([]byte, 1000)
+	bytes := make([]byte, 4096)
 
 	for {
-		_, err := conn.Read(bytes)
+		n, err := conn.Read(bytes)
 
 		if err != nil {
+
 			fmt.Println("Error reading bytes: ", err.Error())
 			conn.Close()
 			fmt.Println("Connection Closed")
 			break
 		}
 
-		_, parsedArray := parser.Parse(bytes)
+		_, parsedArray := parser.Parse(bytes[:n])
 
 		ret := executer.Execute(parsedArray)
 

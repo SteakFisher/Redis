@@ -14,7 +14,7 @@ func (r Redis) SetArray(key string, val []string, prepend bool) int {
 	if redisVal == nil {
 		redisVal = &RedisValue{
 			Type:  List,
-			Array: nil,
+			Array: make([]string, 0, 32),
 		}
 	}
 
@@ -59,10 +59,7 @@ func (r Redis) Range(key string, start int, stop int) ([]string, error) {
 	val := r.m[key]
 
 	if val == nil {
-		val = &RedisValue{
-			Type:  List,
-			Array: nil,
-		}
+		return []string{}, nil
 	}
 
 	if val.Array == nil {

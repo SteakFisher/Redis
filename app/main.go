@@ -23,7 +23,7 @@ func main() {
 	}
 	wg.Add(1)
 
-	clients := make([]net.Conn, 0)
+	clients := make([]net.Conn, 0, 8)
 	client.AcceptClients(l, clients)
 
 	wg.Wait()
