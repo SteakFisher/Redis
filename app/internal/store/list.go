@@ -94,7 +94,7 @@ func (r Redis) Range(key string, start int, stop int) ([]string, error) {
 
 	stop += 1
 
-	return (val.Array)[start:stop], nil
+	return val.Array[start:stop], nil
 }
 
 func (r Redis) Length(key string) int {
@@ -119,6 +119,10 @@ func (r Redis) Pop(key string, num int) ([]string, error) {
 
 	newArr := (val.Array)[num:]
 	poppedElems := (val.Array)[0:num]
+
+	if len(newArr) == 0 {
+		newArr = nil
+	}
 
 	r.m[key] = &RedisValue{
 		Type:  List,

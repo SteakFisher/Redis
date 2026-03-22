@@ -343,7 +343,11 @@ func Execute(parsed []parser.RESP) []byte {
 				valArr = append(valArr, string(parsedValue.Data))
 			}
 
-			id := Redis.StreamAdd(streamKey, entryID, keyArr, valArr)
+			id, err := Redis.StreamAdd(streamKey, entryID, keyArr, valArr)
+
+			if err != nil {
+				return simple_error(err.Error())
+			}
 
 			return bulk(id)
 
@@ -388,4 +392,8 @@ func integer(text int) []byte {
 	val := []byte(fmt.Sprintf(":%d\r\n", text))
 	fmt.Println(val, string(val))
 	return val
+}
+
+func simple_error(text string) []byte {
+	return []byte(fmt.Sprintf("-%s\r\n", text))
 }

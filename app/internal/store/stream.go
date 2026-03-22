@@ -1,6 +1,12 @@
 package store
 
-func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valArr []string) string {
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valArr []string) (string, error) {
 	val := r.m[streamKey]
 
 	var newStream []map[string]string
@@ -9,6 +15,52 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 		val = &RedisValue{
 			Type:   Stream,
 			Stream: nil,
+		}
+	}
+
+	entrySplit := strings.Split(entryID, `-`)
+
+	if len(entrySplit) == 1 {
+		return "", fmt.Errorf("Malformed entryID")
+	}
+
+	var milliSecSplit, seqNo int
+	var err1, err2 error
+
+	if entrySplit[1] == "*" {
+		milliSecSplit, err1 = strconv.Atoi(entrySplit[0])
+
+		if err1 != nil {
+			return "", fmt.Errorf("Malformed entryID, Millisecond not an integer")
+		}
+
+	} else {
+		milliSecSplit, err1 = strconv.Atoi(entrySplit[0])
+		seqNo, err2 = strconv.Atoi(entrySplit[1])
+
+		if err1 != nil || err2 != nil {
+			return "", fmt.Errorf("Malformed entryID, Not integers")
+		}
+	}
+
+	if milliSecSplit == 0 && seqNo == 0 {
+		return "", fmt.Errorf("ERR The ID specified in XADD must be greater than 0-0")
+	}
+
+	if val.Stream != nil {
+		lastElem := val.Stream[len(val.Stream)-1]["id"]
+
+		lastIDSplit := strings.Split(lastElem, `-`)
+
+		lastIDMilliSecSplit, _ := strconv.Atoi(lastIDSplit[0])
+		lastIDSeqNo, _ := strconv.Atoi(lastIDSplit[1])
+
+		if milliSecSplit < lastIDMilliSecSplit {
+			return "", fmt.Errorf("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+		} else if milliSecSplit == lastIDMilliSecSplit {
+			if seqNo <= lastIDSeqNo {
+				return "", fmt.Errorf("ERR The ID specified in XADD is equal or smaller than the target stream top item")
+			}
 		}
 	}
 
@@ -26,5 +78,5 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 
 	r.m[streamKey] = val
 
-	return entryID
+	return entryID, nil
 }
