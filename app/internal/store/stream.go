@@ -31,9 +31,29 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 		milliSecSplit, err1 = strconv.Atoi(entrySplit[0])
 
 		if err1 != nil {
-			return "", fmt.Errorf("Malformed entryID, Millisecond not an integer")
+			return "", fmt.Errorf("Malformed entryID, Not milliseconds")
 		}
 
+		if val.Stream == nil {
+			if milliSecSplit == 0 {
+				seqNo = 1
+			} else {
+				seqNo = 0
+			}
+		} else {
+			lastElem := val.Stream[len(val.Stream)-1]["id"]
+
+			lastIDSplit := strings.Split(lastElem, `-`)
+
+			lastIDMilliSecSplit, _ := strconv.Atoi(lastIDSplit[0])
+			lastIDSeqNo, _ := strconv.Atoi(lastIDSplit[1])
+
+			if milliSecSplit == lastIDMilliSecSplit {
+				seqNo = lastIDSeqNo + 1
+			} else {
+				seqNo = 0
+			}
+		}
 	} else {
 		milliSecSplit, err1 = strconv.Atoi(entrySplit[0])
 		seqNo, err2 = strconv.Atoi(entrySplit[1])
@@ -64,8 +84,10 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 		}
 	}
 
+	newEntryID := fmt.Sprintf("%d-%d", milliSecSplit, seqNo)
+
 	entry := map[string]string{
-		"id": entryID,
+		"id": newEntryID,
 	}
 
 	for i, _ := range keyArr {
@@ -78,5 +100,5 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 
 	r.m[streamKey] = val
 
-	return entryID, nil
+	return newEntryID, nil
 }
