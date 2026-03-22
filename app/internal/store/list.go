@@ -6,17 +6,15 @@ import (
 	"time"
 )
 
-func (r *Redis) SetArray(key string, val []string, prepend bool) int {
+func (r Redis) SetArray(key string, val []string, prepend bool) int {
 	redisVal := r.m[key]
 
 	var newArr []string
 
 	if redisVal == nil {
-		arr := make([]string, 0)
-
 		redisVal = &RedisValue{
 			Type:  List,
-			Array: &arr,
+			Array: nil,
 		}
 	}
 
@@ -24,14 +22,14 @@ func (r *Redis) SetArray(key string, val []string, prepend bool) int {
 	defer redisVal.mu.Unlock()
 
 	if prepend {
-		newArr = append(val, *redisVal.Array...)
+		newArr = append(val, redisVal.Array...)
 	} else {
-		newArr = append(*redisVal.Array, val...)
+		newArr = append(redisVal.Array, val...)
 	}
 
 	r.m[key] = &RedisValue{
 		Type:   List,
-		Array:  &newArr,
+		Array:  newArr,
 		Expiry: time.Time{},
 	}
 
@@ -57,15 +55,13 @@ func (r *Redis) SetArray(key string, val []string, prepend bool) int {
 	return len(newArr)
 }
 
-func (r *Redis) Range(key string, start int, stop int) ([]string, error) {
+func (r Redis) Range(key string, start int, stop int) ([]string, error) {
 	val := r.m[key]
 
 	if val == nil {
-		arr := make([]string, 0)
-
 		val = &RedisValue{
 			Type:  List,
-			Array: &arr,
+			Array: nil,
 		}
 	}
 
@@ -78,10 +74,10 @@ func (r *Redis) Range(key string, start int, stop int) ([]string, error) {
 	}
 
 	if start < 0 {
-		start += len(*val.Array)
+		start += len(val.Array)
 	}
 	if stop < 0 {
-		stop += len(*val.Array)
+		stop += len(val.Array)
 	}
 
 	if start < 0 {
@@ -93,58 +89,49 @@ func (r *Redis) Range(key string, start int, stop int) ([]string, error) {
 
 	if start > stop {
 		return []string{}, nil
-	} else if stop >= len(*val.Array) {
-		stop = len(*val.Array) - 1
-	} else if start >= len(*val.Array) {
+	} else if stop >= len(val.Array) {
+		stop = len(val.Array) - 1
+	} else if start >= len(val.Array) {
 		return []string{}, nil
 	}
 
 	stop += 1
 
-	return (*val.Array)[start:stop], nil
+	return (val.Array)[start:stop], nil
 }
 
-func (r *Redis) Length(key string) int {
+func (r Redis) Length(key string) int {
 	val := r.m[key]
 
 	if val == nil {
-		arr := make([]string, 0)
-
-		val = &RedisValue{
-			Type:  List,
-			Array: &arr,
-		}
-	}
-
-	if val.Array == nil {
 		return 0
 	}
 
-	return len(*val.Array)
+	return len(val.Array)
 }
 
-func (r *Redis) Pop(key string, num int) ([]string, error) {
+func (r Redis) Pop(key string, num int) ([]string, error) {
 	val := r.m[key]
 
-	if val == nil || len(*val.Array) == 0 {
+	if val == nil || len(val.Array) == 0 {
 		return []string{}, fmt.Errorf("Key doesn't exist or is empty")
 	}
 
 	val.mu.Lock()
 	defer val.mu.Unlock()
 
-	newArr := (*val.Array)[num:]
-	poppedElems := (*val.Array)[0:num]
+	newArr := (val.Array)[num:]
+	poppedElems := (val.Array)[0:num]
 
 	r.m[key] = &RedisValue{
 		Type:  List,
-		Array: &newArr,
+		Array: newArr,
 	}
 
 	return poppedElems, nil
 }
 
-func (r *Redis) BPop(key string, waitTime int) ([]string, error) {
+func (r Redis) BPop(key string, waitTime int) ([]string, error) {
 	arr, err := r.Pop(key, 1)
 
 	if err == nil {

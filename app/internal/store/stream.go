@@ -3,12 +3,12 @@ package store
 func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valArr []string) string {
 	val := r.m[streamKey]
 
-	var newStream []*map[string]string
+	var newStream []map[string]string
 
 	if val == nil {
 		val = &RedisValue{
 			Type:   Stream,
-			Stream: &newStream,
+			Stream: nil,
 		}
 	}
 
@@ -20,9 +20,9 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 		entry[keyArr[i]] = valArr[i]
 	}
 
-	newStream = append(newStream, &entry)
+	newStream = append(newStream, entry)
 
-	val.Stream = &newStream
+	val.Stream = newStream
 
 	r.m[streamKey] = val
 

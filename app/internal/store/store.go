@@ -22,9 +22,9 @@ type RedisValue struct {
 	String string
 	Expiry time.Time
 
-	Array *[]string
+	Array []string
 
-	Stream *[]*map[string]string
+	Stream []map[string]string
 }
 
 type RedisChan struct {
@@ -40,7 +40,7 @@ type Redis struct {
 
 var redis_store Redis
 
-func Init() *Redis {
+func Init() Redis {
 	if redis_store.m == nil {
 		redis_store = Redis{
 			m: make(map[string]*RedisValue),
@@ -48,7 +48,7 @@ func Init() *Redis {
 		}
 	}
 
-	return &redis_store
+	return redis_store
 }
 
 func (r *Redis) Type(key string) (string, error) {

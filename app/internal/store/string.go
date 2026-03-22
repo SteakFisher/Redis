@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func (r *Redis) SetString(key string, val string, PX int) {
+func (r Redis) SetString(key string, val string, PX int) {
 	expiryTime := time.Time{}
 
 	if PX != -1 {
@@ -20,7 +20,7 @@ func (r *Redis) SetString(key string, val string, PX int) {
 	}
 }
 
-func (r *Redis) Get(key string) (string, error) {
+func (r Redis) Get(key string) (string, error) {
 	val := r.m[key]
 
 	if val.String == "" {
