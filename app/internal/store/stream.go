@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valArr []string) (string, error) {
@@ -20,26 +21,53 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 
 	entrySplit := strings.Split(entryID, `-`)
 
-	if len(entrySplit) == 1 {
+	if len(entrySplit) == 1 && entrySplit[0] != "*" {
 		return "", fmt.Errorf("Malformed entryID")
 	}
 
 	var milliSecSplit, seqNo int
 	var err1, err2 error
 
-	if entrySplit[1] == "*" {
-		milliSecSplit, err1 = strconv.Atoi(entrySplit[0])
+	if len(entrySplit) == 2 {
+		if entrySplit[1] == "*" {
+			milliSecSplit, err1 = strconv.Atoi(entrySplit[0])
 
-		if err1 != nil {
-			return "", fmt.Errorf("Malformed entryID, Not milliseconds")
-		}
-
-		if val.Stream == nil {
-			if milliSecSplit == 0 {
-				seqNo = 1
-			} else {
-				seqNo = 0
+			if err1 != nil {
+				return "", fmt.Errorf("Malformed entryID, Not milliseconds")
 			}
+
+			if val.Stream == nil {
+				if milliSecSplit == 0 {
+					seqNo = 1
+				} else {
+					seqNo = 0
+				}
+			} else {
+				lastElem := val.Stream[len(val.Stream)-1]["id"]
+
+				lastIDSplit := strings.Split(lastElem, `-`)
+
+				lastIDMilliSecSplit, _ := strconv.Atoi(lastIDSplit[0])
+				lastIDSeqNo, _ := strconv.Atoi(lastIDSplit[1])
+
+				if milliSecSplit == lastIDMilliSecSplit {
+					seqNo = lastIDSeqNo + 1
+				} else {
+					seqNo = 0
+				}
+			}
+		} else {
+			milliSecSplit, err1 = strconv.Atoi(entrySplit[0])
+			seqNo, err2 = strconv.Atoi(entrySplit[1])
+
+			if err1 != nil || err2 != nil {
+				return "", fmt.Errorf("Malformed entryID, Not integers")
+			}
+		}
+	} else {
+		milliSecSplit = int(time.Now().UnixMilli())
+		if val.Stream == nil {
+			seqNo = 0
 		} else {
 			lastElem := val.Stream[len(val.Stream)-1]["id"]
 
@@ -48,18 +76,11 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 			lastIDMilliSecSplit, _ := strconv.Atoi(lastIDSplit[0])
 			lastIDSeqNo, _ := strconv.Atoi(lastIDSplit[1])
 
-			if milliSecSplit == lastIDMilliSecSplit {
+			if lastIDMilliSecSplit == milliSecSplit {
 				seqNo = lastIDSeqNo + 1
 			} else {
 				seqNo = 0
 			}
-		}
-	} else {
-		milliSecSplit, err1 = strconv.Atoi(entrySplit[0])
-		seqNo, err2 = strconv.Atoi(entrySplit[1])
-
-		if err1 != nil || err2 != nil {
-			return "", fmt.Errorf("Malformed entryID, Not integers")
 		}
 	}
 
