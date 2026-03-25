@@ -123,3 +123,14 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 
 	return newEntryID, nil
 }
+
+func (r Redis) StreamRange(streamKey string, startID string, stopID string)  {
+	val := r.m[streamKey]
+
+	if val == nil {
+		val = &RedisValue{
+			Type:   Stream,
+			Stream: nil,
+		}
+	}
+}

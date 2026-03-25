@@ -6,6 +6,12 @@ import (
 	"time"
 )
 
+type StringArr struct {
+	StringVal string
+	ArrayVal  []StringArr
+	IsString  bool
+}
+
 func (r Redis) SetArray(key string, val []string, prepend bool) int {
 	redisVal := r.m[key]
 
@@ -55,19 +61,19 @@ func (r Redis) SetArray(key string, val []string, prepend bool) int {
 	return len(newArr)
 }
 
-func (r Redis) Range(key string, start int, stop int) ([]string, error) {
+func (r Redis) Range(key string, start int, stop int) (StringArr, error) {
 	val := r.m[key]
 
 	if val == nil {
-		return []string{}, nil
+		return StringArr{}, nil
 	}
 
 	if val.Array == nil {
-		return []string{}, nil
+		return StringArr{}, nil
 	}
 
 	if val.Type != List {
-		return []string{}, fmt.Errorf("Cannot find range of a non-array")
+		return StringArr{}, fmt.Errorf("Cannot find range of a non-array")
 	}
 
 	if start < 0 {
@@ -85,16 +91,16 @@ func (r Redis) Range(key string, start int, stop int) ([]string, error) {
 	}
 
 	if start > stop {
-		return []string{}, nil
+		return StringArr{}, nil
 	} else if stop >= len(val.Array) {
 		stop = len(val.Array) - 1
 	} else if start >= len(val.Array) {
-		return []string{}, nil
+		return StringArr{}, nil
 	}
 
 	stop += 1
 
-	return val.Array[start:stop], nil
+	return convertToStringArr(val.Array[start:stop]), nil
 }
 
 func (r Redis) Length(key string) int {
@@ -107,11 +113,11 @@ func (r Redis) Length(key string) int {
 	return len(val.Array)
 }
 
-func (r Redis) Pop(key string, num int) ([]string, error) {
+func (r Redis) Pop(key string, num int) (StringArr, error) {
 	val := r.m[key]
 
 	if val == nil || len(val.Array) == 0 {
-		return []string{}, fmt.Errorf("Key doesn't exist or is empty")
+		return StringArr{}, fmt.Errorf("Key doesn't exist or is empty")
 	}
 
 	val.mu.Lock()
@@ -129,14 +135,21 @@ func (r Redis) Pop(key string, num int) ([]string, error) {
 		Array: newArr,
 	}
 
-	return poppedElems, nil
+	return convertToStringArr(poppedElems), nil
 }
 
-func (r Redis) BPop(key string, waitTime int) ([]string, error) {
+func (r Redis) BPop(key string, waitTime int) (StringArr, error) {
 	arr, err := r.Pop(key, 1)
+	// arr.ArrayVal = append(arr.ArrayVal)
 
 	if err == nil {
-		return append([]string{key}, arr...), err
+		return StringArr{
+			IsString: false,
+			ArrayVal: append([]StringArr{{
+				IsString:  true,
+				StringVal: key,
+			}}, arr.ArrayVal...),
+		}, nil
 	}
 
 	chanVal := r.c[key]
@@ -167,10 +180,19 @@ func (r Redis) BPop(key string, waitTime int) ([]string, error) {
 		arr, err = r.Pop(key, 1)
 
 		if err != nil {
-			return nil, err
+			return StringArr{
+				IsString: false,
+				ArrayVal: nil,
+			}, err
 		}
 
-		return append([]string{key}, arr...), err
+		return StringArr{
+			IsString: false,
+			ArrayVal: append([]StringArr{{
+				IsString:  true,
+				StringVal: key,
+			}}, arr.ArrayVal...),
+		}, err
 	case <-timerChan:
 		chanVal.mu.Lock()
 
@@ -185,6 +207,24 @@ func (r Redis) BPop(key string, waitTime int) ([]string, error) {
 		r.c[key] = chanVal
 		chanVal.mu.Unlock()
 
-		return nil, fmt.Errorf("TIMEOUT")
+		return StringArr{
+			IsString: false,
+			ArrayVal: nil,
+		}, fmt.Errorf("TIMEOUT")
 	}
+}
+
+func convertToStringArr(arr []string) StringArr {
+	returnArr := StringArr{
+		IsString: false,
+	}
+
+	for _, v := range arr {
+		returnArr.ArrayVal = append(returnArr.ArrayVal, StringArr{
+			StringVal: v,
+			IsString:  true,
+		})
+	}
+
+	return returnArr
 }

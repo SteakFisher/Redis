@@ -269,8 +269,8 @@ func Execute(parsed []parser.RESP) []byte {
 				return bulk_error()
 			}
 
-			if len(elems) == 1 {
-				return bulk(elems[0])
+			if len(elems.ArrayVal) == 1 {
+				return bulk(elems.ArrayVal[0].StringVal)
 			} else {
 				return array(elems)
 			}
@@ -358,15 +358,19 @@ func Execute(parsed []parser.RESP) []byte {
 	}
 }
 
-func array(arr []string) []byte {
-	if arr == nil {
+func array(arr store.StringArr) []byte {
+	if arr.ArrayVal == nil {
 		return []byte("*0\r\n")
 	}
 
-	final := []byte(fmt.Sprintf("*%d\r\n", len(arr)))
+	final := []byte(fmt.Sprintf("*%d\r\n", len(arr.ArrayVal)))
 
-	for i := 0; i < len(arr); i++ {
-		final = append(final, bulk(arr[i])...)
+	for i := 0; i < len(arr.ArrayVal); i++ {
+		if arr.ArrayVal[i].IsString {
+			final = append(final, bulk(arr.ArrayVal[i].StringVal)...)
+		} else {
+			final = append(final, array(arr.ArrayVal[i])...)
+		}
 	}
 
 	return final
