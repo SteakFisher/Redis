@@ -24,7 +24,7 @@ type RedisValue struct {
 
 	Array []string
 
-	Stream []map[string]string
+	Stream StringArr
 }
 
 type RedisChan struct {

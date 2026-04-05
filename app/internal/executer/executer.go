@@ -350,6 +350,34 @@ func Execute(parsed []parser.RESP) []byte {
 			}
 
 			return bulk(id)
+		case "xrange":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No stream key mentioned in xrange cmd")
+				return bulk_error()
+			}
+
+			streamKey := string(parsedValue.Data)
+
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("No stream key value mentioned in xrange cmd")
+				return bulk_error()
+			}
+
+			start := string(parsedValue.Data)
+
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("NO end ID mentioned in xrange cmd")
+			}
+
+			end := string(parsedValue.Data)
+
+			return array(Redis.StreamRange(streamKey, start, end))
 
 		default:
 			fmt.Println("Unknown Execution Cmd")

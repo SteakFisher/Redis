@@ -10,12 +10,10 @@ import (
 func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valArr []string) (string, error) {
 	val := r.m[streamKey]
 
-	var newStream []map[string]string
-
 	if val == nil {
 		val = &RedisValue{
 			Type:   Stream,
-			Stream: nil,
+			Stream: StringArr{},
 		}
 	}
 
@@ -36,16 +34,16 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 				return "", fmt.Errorf("Malformed entryID, Not milliseconds")
 			}
 
-			if val.Stream == nil {
+			if val.Stream.ArrayVal == nil {
 				if milliSecSplit == 0 {
 					seqNo = 1
 				} else {
 					seqNo = 0
 				}
 			} else {
-				lastElem := val.Stream[len(val.Stream)-1]["id"]
+				lastElem := val.Stream.ArrayVal[len(val.Stream.ArrayVal)-2]
 
-				lastIDSplit := strings.Split(lastElem, `-`)
+				lastIDSplit := strings.Split(lastElem.StringVal, `-`)
 
 				lastIDMilliSecSplit, _ := strconv.Atoi(lastIDSplit[0])
 				lastIDSeqNo, _ := strconv.Atoi(lastIDSplit[1])
@@ -66,12 +64,12 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 		}
 	} else {
 		milliSecSplit = int(time.Now().UnixMilli())
-		if val.Stream == nil {
+		if val.Stream.ArrayVal == nil {
 			seqNo = 0
 		} else {
-			lastElem := val.Stream[len(val.Stream)-1]["id"]
+			lastElem := val.Stream.ArrayVal[len(val.Stream.ArrayVal)-2]
 
-			lastIDSplit := strings.Split(lastElem, `-`)
+			lastIDSplit := strings.Split(lastElem.StringVal, `-`)
 
 			lastIDMilliSecSplit, _ := strconv.Atoi(lastIDSplit[0])
 			lastIDSeqNo, _ := strconv.Atoi(lastIDSplit[1])
@@ -88,10 +86,10 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 		return "", fmt.Errorf("ERR The ID specified in XADD must be greater than 0-0")
 	}
 
-	if val.Stream != nil {
-		lastElem := val.Stream[len(val.Stream)-1]["id"]
+	if val.Stream.ArrayVal != nil {
+		lastElem := val.Stream.ArrayVal[len(val.Stream.ArrayVal)-2]
 
-		lastIDSplit := strings.Split(lastElem, `-`)
+		lastIDSplit := strings.Split(lastElem.StringVal, `-`)
 
 		lastIDMilliSecSplit, _ := strconv.Atoi(lastIDSplit[0])
 		lastIDSeqNo, _ := strconv.Atoi(lastIDSplit[1])
@@ -107,30 +105,156 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 
 	newEntryID := fmt.Sprintf("%d-%d", milliSecSplit, seqNo)
 
-	entry := map[string]string{
-		"id": newEntryID,
+	val.Stream.ArrayVal = append(val.Stream.ArrayVal, StringArr{
+		IsString:  true,
+		StringVal: newEntryID,
+	})
+
+	entryArr := StringArr{
+		IsString: false,
+		ArrayVal: nil,
 	}
 
-	for i, _ := range keyArr {
-		entry[keyArr[i]] = valArr[i]
+	for i := 0; i < len(keyArr); i++ {
+		entryArr.ArrayVal = append(entryArr.ArrayVal, StringArr{
+			IsString:  true,
+			StringVal: keyArr[i],
+		})
+
+		entryArr.ArrayVal = append(entryArr.ArrayVal, StringArr{
+			IsString:  true,
+			StringVal: valArr[i],
+		})
 	}
 
-	newStream = append(newStream, entry)
-
-	val.Stream = newStream
+	val.Stream.ArrayVal = append(val.Stream.ArrayVal, entryArr)
 
 	r.m[streamKey] = val
 
 	return newEntryID, nil
 }
 
-func (r Redis) StreamRange(streamKey string, startID string, stopID string)  {
+func (r Redis) StreamRange(streamKey string, startID string, stopID string) StringArr {
 	val := r.m[streamKey]
 
+	var err error
+
+	var startMilli, stopMilli int
+	var startSeq, stopSeq int
+
 	if val == nil {
-		val = &RedisValue{
-			Type:   Stream,
-			Stream: nil,
+		return StringArr{}
+	}
+
+	startSplit := strings.Split(startID, `-`)
+
+	startMilli, err = strconv.Atoi(startSplit[0])
+
+	if err != nil {
+		fmt.Println("Start ID not integer")
+		return StringArr{
+			IsString: false,
+			ArrayVal: nil,
 		}
 	}
+
+	if len(startSplit) == 1 {
+		startSeq = 0
+	} else {
+		startSeq, err = strconv.Atoi(startSplit[1])
+
+		if err != nil {
+			fmt.Println("Start Seq not integer")
+			return StringArr{
+				IsString: false,
+				ArrayVal: nil,
+			}
+		}
+	}
+
+	stopSplit := strings.Split(stopID, `-`)
+
+	stopMilli, err = strconv.Atoi(stopSplit[0])
+
+	if err != nil {
+		fmt.Println("Stop ID not integer")
+		return StringArr{
+			IsString: false,
+			ArrayVal: nil,
+		}
+	}
+
+	if len(stopSplit) == 1 {
+		stopSeq = 0
+
+		for i := len(val.Stream.ArrayVal) - 1; i >= 0; i-- {
+			if val.Stream.ArrayVal[i].IsString {
+				idMilli := strings.Split(val.Stream.ArrayVal[i].StringVal, `-`)
+
+				if idMilli[0] == stopSplit[0] {
+					stopSeq, _ = strconv.Atoi(idMilli[1])
+					break
+				}
+			}
+		}
+	} else {
+		stopSeq, err = strconv.Atoi(stopSplit[1])
+
+		if err != nil {
+			fmt.Println("Start Seq not integer")
+			return StringArr{
+				IsString: false,
+				ArrayVal: nil,
+			}
+		}
+	}
+
+	if startMilli > stopMilli {
+		fmt.Println("Start ID greater than stop")
+		return StringArr{}
+	}
+
+	finalArr := StringArr{
+		IsString: false,
+		ArrayVal: nil,
+	}
+
+	for i := 0; i < len(val.Stream.ArrayVal); i++ {
+		elem := val.Stream.ArrayVal[i]
+
+		if elem.IsString {
+			elemSplit := strings.Split(elem.StringVal, `-`)
+			elemMilli, _ := strconv.Atoi(elemSplit[0])
+			elemSeq, _ := strconv.Atoi(elemSplit[1])
+
+			if elemMilli < startMilli {
+				i++
+				continue
+			} else if elemMilli == startMilli {
+				if elemSeq < startSeq {
+					i++
+					continue
+				}
+			}
+
+			if elemMilli > stopMilli {
+				break
+			} else if elemMilli == stopMilli {
+				if elemSeq > stopSeq {
+					break
+				}
+			}
+
+			finalArr.ArrayVal = append(finalArr.ArrayVal, StringArr{
+				IsString: false,
+				ArrayVal: []StringArr{
+					elem,
+					val.Stream.ArrayVal[i+1],
+				},
+			})
+			i++
+		}
+	}
+
+	return finalArr
 }
