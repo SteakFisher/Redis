@@ -34,7 +34,6 @@ func Parse(b []byte) (int, []RESP) {
 	switch resp.Type {
 	case Array:
 		var err error
-
 		resp.Count, err = strconv.Atoi(string(b[1 : i-2]))
 
 		if err != nil {

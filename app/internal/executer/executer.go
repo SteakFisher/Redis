@@ -378,6 +378,58 @@ func Execute(parsed []parser.RESP) []byte {
 			end := string(parsedValue.Data)
 
 			return array(Redis.StreamRange(streamKey, start, end))
+		case "xread":
+			parsedValue, valid = next()
+
+			arg := string(parsedValue.Data)
+
+			switch strings.ToLower(arg) {
+			case "streams":
+				for _, v := range parsed {
+					fmt.Println(string(v.Data))
+				}
+
+				var keyArr, idArr []string
+
+				for {
+					parsedValue, valid = next()
+
+					if !valid {
+						fmt.Println("No stream IDs mentioned in xread streams cmd")
+						return bulk_error()
+					}
+
+					_, err := strconv.Atoi(strings.Split(string(parsedValue.Data), `-`)[0])
+
+					if err == nil {
+						idArr = append(idArr, string(parsedValue.Data))
+						break
+					} else {
+						keyArr = append(keyArr, string(parsedValue.Data))
+					}
+				}
+
+				for {
+					parsedValue, valid = next()
+
+					if !valid {
+						break
+					}
+
+					idArr = append(idArr, string(parsedValue.Data))
+				}
+
+				if len(idArr) != len(keyArr) {
+					fmt.Println("Length of both arrays aren't equal")
+					return bulk_error()
+				}
+
+				return array(Redis.StreamRead(keyArr, idArr))
+
+			default:
+				fmt.Println("Unknown XREAD Cmd")
+				os.Exit(1)
+			}
 
 		default:
 			fmt.Println("Unknown Execution Cmd")

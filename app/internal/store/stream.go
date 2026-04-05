@@ -272,3 +272,25 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 
 	return finalArr
 }
+
+func (r Redis) StreamRead(keys []string, startIDs []string) StringArr {
+	finalArr := StringArr{
+		IsString: false,
+		ArrayVal: nil,
+	}
+
+	for i, _ := range keys {
+		finalArr.ArrayVal = append(finalArr.ArrayVal, StringArr{
+			IsString: false,
+			ArrayVal: []StringArr{
+				{
+					IsString:  true,
+					StringVal: keys[i],
+				},
+				r.StreamRange(keys[i], startIDs[i], "+"),
+			},
+		})
+	}
+
+	return finalArr
+}
