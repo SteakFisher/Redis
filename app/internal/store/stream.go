@@ -146,65 +146,79 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 		return StringArr{}
 	}
 
-	startSplit := strings.Split(startID, `-`)
+	if startID == "-" {
+		startMilli = 0
+		startSeq = 0
+	} else if stopID == "+" {
+		lastElem := strings.Split(val.Stream.ArrayVal[len(val.Stream.ArrayVal)-2].StringVal, `-`)
 
-	startMilli, err = strconv.Atoi(startSplit[0])
-
-	if err != nil {
-		fmt.Println("Start ID not integer")
-		return StringArr{
-			IsString: false,
-			ArrayVal: nil,
-		}
+		stopMilli, _ = strconv.Atoi(lastElem[0])
+		stopSeq, _ = strconv.Atoi(lastElem[1])
 	}
 
-	if len(startSplit) == 1 {
-		startSeq = 0
-	} else {
-		startSeq, err = strconv.Atoi(startSplit[1])
+	if startID != "-" {
+		startSplit := strings.Split(startID, `-`)
+
+		startMilli, err = strconv.Atoi(startSplit[0])
 
 		if err != nil {
-			fmt.Println("Start Seq not integer")
+			fmt.Println("Start ID not integer")
 			return StringArr{
 				IsString: false,
 				ArrayVal: nil,
 			}
 		}
-	}
 
-	stopSplit := strings.Split(stopID, `-`)
+		if len(startSplit) == 1 {
+			startSeq = 0
+		} else {
+			startSeq, err = strconv.Atoi(startSplit[1])
 
-	stopMilli, err = strconv.Atoi(stopSplit[0])
-
-	if err != nil {
-		fmt.Println("Stop ID not integer")
-		return StringArr{
-			IsString: false,
-			ArrayVal: nil,
-		}
-	}
-
-	if len(stopSplit) == 1 {
-		stopSeq = 0
-
-		for i := len(val.Stream.ArrayVal) - 1; i >= 0; i-- {
-			if val.Stream.ArrayVal[i].IsString {
-				idMilli := strings.Split(val.Stream.ArrayVal[i].StringVal, `-`)
-
-				if idMilli[0] == stopSplit[0] {
-					stopSeq, _ = strconv.Atoi(idMilli[1])
-					break
+			if err != nil {
+				fmt.Println("Start Seq not integer")
+				return StringArr{
+					IsString: false,
+					ArrayVal: nil,
 				}
 			}
 		}
-	} else {
-		stopSeq, err = strconv.Atoi(stopSplit[1])
+	}
+
+	if stopID != "+" {
+		stopSplit := strings.Split(stopID, `-`)
+
+		stopMilli, err = strconv.Atoi(stopSplit[0])
 
 		if err != nil {
-			fmt.Println("Start Seq not integer")
+			fmt.Println("Stop ID not integer")
 			return StringArr{
 				IsString: false,
 				ArrayVal: nil,
+			}
+		}
+
+		if len(stopSplit) == 1 {
+			stopSeq = 0
+
+			for i := len(val.Stream.ArrayVal) - 1; i >= 0; i-- {
+				if val.Stream.ArrayVal[i].IsString {
+					idMilli := strings.Split(val.Stream.ArrayVal[i].StringVal, `-`)
+
+					if idMilli[0] == stopSplit[0] {
+						stopSeq, _ = strconv.Atoi(idMilli[1])
+						break
+					}
+				}
+			}
+		} else {
+			stopSeq, err = strconv.Atoi(stopSplit[1])
+
+			if err != nil {
+				fmt.Println("Start Seq not integer")
+				return StringArr{
+					IsString: false,
+					ArrayVal: nil,
+				}
 			}
 		}
 	}
