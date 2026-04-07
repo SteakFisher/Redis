@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -103,6 +104,15 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 		}
 	}
 
+	chanVal := r.c[streamKey]
+
+	if chanVal != nil {
+		chanVal.Array[0] <- 0
+	}
+
+	val.mu.Lock()
+	defer val.mu.Unlock()
+
 	newEntryID := fmt.Sprintf("%d-%d", milliSecSplit, seqNo)
 
 	val.Stream.ArrayVal = append(val.Stream.ArrayVal, StringArr{
@@ -115,7 +125,7 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 		ArrayVal: nil,
 	}
 
-	for i := 0; i < len(keyArr); i++ {
+	for i := range len(keyArr) {
 		entryArr.ArrayVal = append(entryArr.ArrayVal, StringArr{
 			IsString:  true,
 			StringVal: keyArr[i],
@@ -280,6 +290,9 @@ func (r Redis) StreamRead(keys []string, startIDs []string) StringArr {
 	}
 
 	for i, _ := range keys {
+		newIDSplit := strings.Split(startIDs[i], `-`)
+		num, _ := strconv.Atoi(newIDSplit[1])
+
 		finalArr.ArrayVal = append(finalArr.ArrayVal, StringArr{
 			IsString: false,
 			ArrayVal: []StringArr{
@@ -287,10 +300,94 @@ func (r Redis) StreamRead(keys []string, startIDs []string) StringArr {
 					IsString:  true,
 					StringVal: keys[i],
 				},
-				r.StreamRange(keys[i], startIDs[i], "+"),
+				r.StreamRange(keys[i], fmt.Sprintf("%s-%d", newIDSplit[0], num+1), "+"),
 			},
 		})
 	}
 
 	return finalArr
+}
+
+func (r Redis) StreamBlockRead(streamKey string, id string, blockTime int) (StringArr, error) {
+	lastID := r.StreamLast(streamKey)
+
+	if id != "$" {
+		stream := r.StreamRead([]string{streamKey}, []string{id})
+
+		if len(stream.ArrayVal[0].ArrayVal) > 1 {
+			if stream.ArrayVal[0].ArrayVal[1].ArrayVal != nil {
+				return stream, nil
+			}
+		}
+	}
+
+	chanVal := r.c[streamKey]
+
+	if chanVal == nil {
+		chanVal = &RedisChan{
+			Array: nil,
+		}
+	}
+
+	chanVal.mu.Lock()
+
+	ch := make(chan int)
+	chanVal.Array = append(chanVal.Array, ch)
+
+	r.c[streamKey] = chanVal
+	chanVal.mu.Unlock()
+
+	var timerChan <-chan time.Time
+
+	if blockTime > 0 {
+		timer := time.NewTimer(time.Millisecond * time.Duration(blockTime))
+		timerChan = timer.C
+	}
+
+	for {
+		select {
+		case <-ch:
+			if id == "$" {
+				return r.StreamRead([]string{streamKey}, []string{lastID}), nil
+			}
+
+			stream := r.StreamRead([]string{streamKey}, []string{id})
+
+			if len(stream.ArrayVal[0].ArrayVal) > 1 {
+				if stream.ArrayVal[0].ArrayVal[1].ArrayVal != nil {
+					return stream, nil
+				}
+			}
+
+			continue
+		case <-timerChan:
+			chanVal.mu.Lock()
+
+			chanVal.Array = slices.DeleteFunc(chanVal.Array, func(retChannel chan int) bool {
+				if retChannel == ch {
+					close(ch)
+					return true
+				}
+				return false
+			})
+
+			r.c[streamKey] = chanVal
+			chanVal.mu.Unlock()
+
+			return StringArr{
+				IsString: false,
+				ArrayVal: nil,
+			}, fmt.Errorf("TIMEOUT")
+		}
+	}
+}
+
+func (r Redis) StreamLast(key string) string {
+	val := r.m[key]
+
+	if val == nil {
+		return "0-0"
+	}
+
+	return val.Stream.ArrayVal[len(val.Stream.ArrayVal)-2].StringVal
 }

@@ -40,7 +40,6 @@ func (r Redis) SetArray(key string, val []string, prepend bool) int {
 	}
 
 	chanVal := r.c[key]
-	fmt.Println(chanVal)
 
 	if chanVal != nil {
 		chanVal.mu.Lock()

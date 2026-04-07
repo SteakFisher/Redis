@@ -425,6 +425,48 @@ func Execute(parsed []parser.RESP) []byte {
 				}
 
 				return array(Redis.StreamRead(keyArr, idArr))
+			case "block":
+				parsedValue, valid = next()
+
+				if !valid {
+					fmt.Println("Block time not mentioned")
+					return bulk_error()
+				}
+
+				block, err := strconv.Atoi(string(parsedValue.Data))
+
+				if err != nil {
+					fmt.Println("Block time not an int")
+					return bulk_error()
+				}
+
+				next()
+
+				parsedValue, valid = next()
+
+				if !valid {
+					fmt.Println("Key not mentioned in xread cmd")
+					return bulk_error()
+				}
+
+				key := string(parsedValue.Data)
+
+				parsedValue, valid = next()
+
+				if !valid {
+					fmt.Println("Key not mentioned in xread cmd")
+					return bulk_error()
+				}
+
+				id := string(parsedValue.Data)
+
+				smth, err := Redis.StreamBlockRead(key, id, block)
+
+				if err != nil {
+					return null_array()
+				}
+
+				return array(smth)
 
 			default:
 				fmt.Println("Unknown XREAD Cmd")
