@@ -31,9 +31,7 @@ func Subscribe(conn net.Conn, chName string) StringArr {
 	channelNames[chName] = struct{}{}
 	ClientName[conn] = channelNames
 
-	// fmt.Println("BEFORE 2", Pub)
 	Pub <- chName
-	// fmt.Println("AFTER 2", Pub)
 
 	return StringArr{
 		Type: Array,
@@ -64,4 +62,41 @@ func Publish(channelName string, message string) (int, error) {
 	channel <- message
 
 	return len(ChannelClient[channel]), nil
+}
+
+func Unsubscribe(conn net.Conn, channelName string) StringArr {
+	channelNames := ClientName[conn]
+
+	delete(channelNames, channelName)
+
+	channel := NameChannel[channelName]
+
+	clients := ChannelClient[channel]
+	var new []net.Conn
+
+	for _, v := range clients {
+		if v != conn {
+			new = append(new, v)
+		}
+	}
+
+	ChannelClient[channel] = new
+
+	return StringArr{
+		Type: Array,
+		ArrayVal: []StringArr{
+			{
+				Type:      String,
+				StringVal: "unsubscribe",
+			},
+			{
+				Type:      String,
+				StringVal: channelName,
+			},
+			{
+				Type:       Integer,
+				IntegerVal: len(ClientName[conn]),
+			},
+		},
+	}
 }

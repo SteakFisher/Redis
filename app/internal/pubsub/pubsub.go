@@ -13,9 +13,7 @@ func Pubsub() {
 	}
 
 	for {
-		// fmt.Println("BEFORE 1", store.Pub)
 		channelName := <-store.Pub
-		// fmt.Println("AFTER 1", store.Pub)
 		channel := store.NameChannel[channelName]
 
 		go func() {

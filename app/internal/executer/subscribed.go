@@ -32,6 +32,16 @@ func subscribedClient(conn net.Conn, next func() (parser.RESP, bool)) []byte {
 
 			return Array(store.Subscribe(conn, ch))
 		case "unsubscribe":
+			parsedValue, valid = next()
+
+			if !valid {
+				return bulk_error()
+			}
+
+			ch := string(parsedValue.Data)
+
+			return Array(store.Unsubscribe(conn, ch))
+
 		case "psubscribe":
 		case "punsubscribe":
 		case "ping":
