@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/SteakFisher/Redis/app/internal/client"
+	"github.com/SteakFisher/Redis/app/internal/pubsub"
 )
 
 func main() {
@@ -24,7 +25,8 @@ func main() {
 	wg.Add(1)
 
 	clients := make([]net.Conn, 0, 8)
-	client.AcceptClients(l, clients)
+	go client.AcceptClients(l, clients)
+	go pubsub.Pubsub()
 
 	wg.Wait()
 }

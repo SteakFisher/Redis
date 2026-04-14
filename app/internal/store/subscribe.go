@@ -1,20 +1,39 @@
 package store
 
-import "net"
+import (
+	"fmt"
+	"net"
+)
 
 func Subscribe(conn net.Conn, chName string) StringArr {
-	channels := SubscribedClients[conn]
+	channelNames := ClientName[conn]
+	channel := NameChannel[chName]
 
-	if len(channels) == 0 {
-		channels = map[SubscribeChannel]struct{}{}
+	if channel == nil {
+		channel = make(chan string)
 	}
 
-	channels[SubscribeChannel{
-		Name:    chName,
-		Channel: make(chan string),
-	}] = struct{}{}
+	clients := ChannelClient[channel]
 
-	SubscribedClients[conn] = channels
+	if clients == nil {
+		clients = make([]net.Conn, 0)
+	}
+
+	clients = append(clients, conn)
+	ChannelClient[channel] = clients
+
+	NameChannel[chName] = channel
+
+	if len(channelNames) == 0 {
+		channelNames = map[string]struct{}{}
+	}
+
+	channelNames[chName] = struct{}{}
+	ClientName[conn] = channelNames
+
+	// fmt.Println("BEFORE 2", Pub)
+	Pub <- chName
+	// fmt.Println("AFTER 2", Pub)
 
 	return StringArr{
 		Type: Array,
@@ -29,8 +48,20 @@ func Subscribe(conn net.Conn, chName string) StringArr {
 			},
 			{
 				Type:       Integer,
-				IntegerVal: len(SubscribedClients[conn]),
+				IntegerVal: len(ClientName[conn]),
 			},
 		},
 	}
+}
+
+func Publish(channelName string, message string) (int, error) {
+	channel := NameChannel[channelName]
+
+	if channel == nil {
+		return 0, fmt.Errorf("No channel with that name exists")
+	}
+
+	channel <- message
+
+	return len(ChannelClient[channel]), nil
 }

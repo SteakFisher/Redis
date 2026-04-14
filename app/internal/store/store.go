@@ -39,12 +39,11 @@ type Redis struct {
 	c map[string]*RedisChan
 }
 
-type SubscribeChannel struct {
-	Name    string
-	Channel chan string
-}
+var Pub chan string
+var ClientName map[net.Conn]map[string]struct{}
+var ChannelClient map[chan string][]net.Conn
 
-var SubscribedClients map[net.Conn]map[SubscribeChannel]struct{}
+var NameChannel map[string]chan string
 
 var redis_store Redis
 
@@ -56,8 +55,16 @@ func Init() Redis {
 		}
 	}
 
-	if SubscribedClients == nil {
-		SubscribedClients = make(map[net.Conn]map[SubscribeChannel]struct{})
+	if ClientName == nil {
+		ClientName = make(map[net.Conn]map[string]struct{})
+	}
+
+	if ChannelClient == nil {
+		ChannelClient = make(map[chan string][]net.Conn)
+	}
+
+	if NameChannel == nil {
+		NameChannel = make(map[string]chan string)
 	}
 
 	return redis_store

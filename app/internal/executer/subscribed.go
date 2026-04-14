@@ -30,12 +30,12 @@ func subscribedClient(conn net.Conn, next func() (parser.RESP, bool)) []byte {
 
 			ch := string(parsedValue.Data)
 
-			return array(store.Subscribe(conn, ch))
+			return Array(store.Subscribe(conn, ch))
 		case "unsubscribe":
 		case "psubscribe":
 		case "punsubscribe":
 		case "ping":
-			return array(store.StringArr{
+			return Array(store.StringArr{
 				Type: store.Array,
 				ArrayVal: []store.StringArr{
 					{

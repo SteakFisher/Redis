@@ -21,7 +21,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 
 	defer stop()
 
-	if store.SubscribedClients[conn] != nil {
+	if store.ClientName[conn] != nil {
 		return subscribedClient(conn, next)
 	}
 
@@ -232,7 +232,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 				return bulk_error()
 			}
 
-			return array(newArr)
+			return Array(newArr)
 		case "llen":
 			parsedValue, valid = next()
 
@@ -277,7 +277,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 			if len(elems.ArrayVal) == 1 {
 				return bulk(elems.ArrayVal[0].StringVal)
 			} else {
-				return array(elems)
+				return Array(elems)
 			}
 		case "blpop":
 			parsedValue, valid = next()
@@ -311,7 +311,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 				return null_array()
 			}
 
-			return array(val)
+			return Array(val)
 
 		// Stream cmds
 		case "xadd":
@@ -382,7 +382,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 
 			end := string(parsedValue.Data)
 
-			return array(Redis.StreamRange(streamKey, start, end))
+			return Array(Redis.StreamRange(streamKey, start, end))
 		case "xread":
 			parsedValue, valid = next()
 
@@ -429,7 +429,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 					return bulk_error()
 				}
 
-				return array(Redis.StreamRead(keyArr, idArr))
+				return Array(Redis.StreamRead(keyArr, idArr))
 			case "block":
 				parsedValue, valid = next()
 
@@ -471,7 +471,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 					return null_array()
 				}
 
-				return array(smth)
+				return Array(smth)
 
 			default:
 				fmt.Println("Unknown XREAD Cmd")
@@ -488,7 +488,33 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 
 			ch := string(parsedValue.Data)
 
-			return array(store.Subscribe(conn, ch))
+			return Array(store.Subscribe(conn, ch))
+		case "publish":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("Channel name not mentioned in publish cmd")
+				return bulk_error()
+			}
+
+			channelName := string(parsedValue.Data)
+
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("Message not mentioned in publish cmd")
+				return bulk_error()
+			}
+
+			message := string(parsedValue.Data)
+
+			length, err := store.Publish(channelName, message)
+
+			if err != nil {
+				return bulk_error()
+			}
+
+			return integer(length)
 
 		default:
 			fmt.Println("Unknown Execution Cmd")
@@ -497,7 +523,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 	}
 }
 
-func array(arr store.StringArr) []byte {
+func Array(arr store.StringArr) []byte {
 	if arr.ArrayVal == nil {
 		return []byte("*0\r\n")
 	}
@@ -511,7 +537,7 @@ func array(arr store.StringArr) []byte {
 		case store.Integer:
 			final = append(final, integer(arr.ArrayVal[i].IntegerVal)...)
 		case store.Array:
-			final = append(final, array(arr.ArrayVal[i])...)
+			final = append(final, Array(arr.ArrayVal[i])...)
 		}
 	}
 
