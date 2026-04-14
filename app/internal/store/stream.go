@@ -106,7 +106,7 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 
 	chanVal := r.c[streamKey]
 
-	if chanVal != nil {
+	if chanVal != nil && len(chanVal.Array) != 0 {
 		chanVal.Array[0] <- 0
 	}
 
