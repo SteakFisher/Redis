@@ -24,7 +24,7 @@ func Read(conn net.Conn) {
 
 		_, parsedArray := parser.Parse(bytes[:n])
 
-		ret := executer.Execute(parsedArray)
+		ret := executer.Execute(parsedArray, conn)
 
 		conn.Write(ret)
 	}

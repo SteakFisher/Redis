@@ -3,6 +3,7 @@ package executer
 import (
 	"fmt"
 	"iter"
+	"net"
 	"os"
 	"slices"
 	"strconv"
@@ -12,13 +13,17 @@ import (
 	"github.com/SteakFisher/Redis/app/internal/store"
 )
 
-func Execute(parsed []parser.RESP) []byte {
+func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 	iterator := slices.Values(parsed)
 	next, stop := iter.Pull(iterator)
 
 	Redis := store.Init()
 
 	defer stop()
+
+	if store.SubscribedClients[conn] != nil {
+		return subscribedClient(conn, next)
+	}
 
 	for {
 		parsedValue, valid := next()
@@ -481,6 +486,10 @@ func Execute(parsed []parser.RESP) []byte {
 				return bulk_error()
 			}
 
+			ch := string(parsedValue.Data)
+
+			return array(store.Subscribe(conn, ch))
+
 		default:
 			fmt.Println("Unknown Execution Cmd")
 			return null_array()
@@ -527,7 +536,6 @@ func simple(text string) []byte {
 
 func integer(text int) []byte {
 	val := []byte(fmt.Sprintf(":%d\r\n", text))
-	fmt.Println(val, string(val))
 	return val
 }
 
