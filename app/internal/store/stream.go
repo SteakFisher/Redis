@@ -116,23 +116,23 @@ func (r Redis) StreamAdd(streamKey string, entryID string, keyArr []string, valA
 	newEntryID := fmt.Sprintf("%d-%d", milliSecSplit, seqNo)
 
 	val.Stream.ArrayVal = append(val.Stream.ArrayVal, StringArr{
-		IsString:  true,
+		Type:      String,
 		StringVal: newEntryID,
 	})
 
 	entryArr := StringArr{
-		IsString: false,
+		Type:     Array,
 		ArrayVal: nil,
 	}
 
 	for i := range len(keyArr) {
 		entryArr.ArrayVal = append(entryArr.ArrayVal, StringArr{
-			IsString:  true,
+			Type:      String,
 			StringVal: keyArr[i],
 		})
 
 		entryArr.ArrayVal = append(entryArr.ArrayVal, StringArr{
-			IsString:  true,
+			Type:      String,
 			StringVal: valArr[i],
 		})
 	}
@@ -174,7 +174,7 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 		if err != nil {
 			fmt.Println("Start ID not integer")
 			return StringArr{
-				IsString: false,
+				Type:     Array,
 				ArrayVal: nil,
 			}
 		}
@@ -187,7 +187,7 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 			if err != nil {
 				fmt.Println("Start Seq not integer")
 				return StringArr{
-					IsString: false,
+					Type:     Array,
 					ArrayVal: nil,
 				}
 			}
@@ -202,7 +202,7 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 		if err != nil {
 			fmt.Println("Stop ID not integer")
 			return StringArr{
-				IsString: false,
+				Type:     Array,
 				ArrayVal: nil,
 			}
 		}
@@ -211,7 +211,7 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 			stopSeq = 0
 
 			for i := len(val.Stream.ArrayVal) - 1; i >= 0; i-- {
-				if val.Stream.ArrayVal[i].IsString {
+				if val.Stream.ArrayVal[i].Type == String {
 					idMilli := strings.Split(val.Stream.ArrayVal[i].StringVal, `-`)
 
 					if idMilli[0] == stopSplit[0] {
@@ -226,7 +226,7 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 			if err != nil {
 				fmt.Println("Start Seq not integer")
 				return StringArr{
-					IsString: false,
+					Type:     Array,
 					ArrayVal: nil,
 				}
 			}
@@ -239,14 +239,14 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 	}
 
 	finalArr := StringArr{
-		IsString: false,
+		Type:     Array,
 		ArrayVal: nil,
 	}
 
 	for i := 0; i < len(val.Stream.ArrayVal); i++ {
 		elem := val.Stream.ArrayVal[i]
 
-		if elem.IsString {
+		if elem.Type == String {
 			elemSplit := strings.Split(elem.StringVal, `-`)
 			elemMilli, _ := strconv.Atoi(elemSplit[0])
 			elemSeq, _ := strconv.Atoi(elemSplit[1])
@@ -270,7 +270,7 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 			}
 
 			finalArr.ArrayVal = append(finalArr.ArrayVal, StringArr{
-				IsString: false,
+				Type: Array,
 				ArrayVal: []StringArr{
 					elem,
 					val.Stream.ArrayVal[i+1],
@@ -285,7 +285,7 @@ func (r Redis) StreamRange(streamKey string, startID string, stopID string) Stri
 
 func (r Redis) StreamRead(keys []string, startIDs []string) StringArr {
 	finalArr := StringArr{
-		IsString: false,
+		Type:     Array,
 		ArrayVal: nil,
 	}
 
@@ -294,10 +294,10 @@ func (r Redis) StreamRead(keys []string, startIDs []string) StringArr {
 		num, _ := strconv.Atoi(newIDSplit[1])
 
 		finalArr.ArrayVal = append(finalArr.ArrayVal, StringArr{
-			IsString: false,
+			Type: Array,
 			ArrayVal: []StringArr{
 				{
-					IsString:  true,
+					Type:      String,
 					StringVal: keys[i],
 				},
 				r.StreamRange(keys[i], fmt.Sprintf("%s-%d", newIDSplit[0], num+1), "+"),
@@ -375,7 +375,7 @@ func (r Redis) StreamBlockRead(streamKey string, id string, blockTime int) (Stri
 			chanVal.mu.Unlock()
 
 			return StringArr{
-				IsString: false,
+				Type:     Array,
 				ArrayVal: nil,
 			}, fmt.Errorf("TIMEOUT")
 		}

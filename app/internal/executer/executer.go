@@ -473,9 +473,17 @@ func Execute(parsed []parser.RESP) []byte {
 				os.Exit(1)
 			}
 
+		// Pub Sub cmds
+		case "subscribe":
+			parsedValue, valid = next()
+
+			if !valid {
+				return bulk_error()
+			}
+
 		default:
 			fmt.Println("Unknown Execution Cmd")
-			os.Exit(1)
+			return null_array()
 		}
 	}
 }
@@ -488,9 +496,12 @@ func array(arr store.StringArr) []byte {
 	final := []byte(fmt.Sprintf("*%d\r\n", len(arr.ArrayVal)))
 
 	for i := 0; i < len(arr.ArrayVal); i++ {
-		if arr.ArrayVal[i].IsString {
+		switch arr.ArrayVal[i].Type {
+		case store.String:
 			final = append(final, bulk(arr.ArrayVal[i].StringVal)...)
-		} else {
+		case store.Integer:
+			final = append(final, integer(arr.ArrayVal[i].IntegerVal)...)
+		case store.Array:
 			final = append(final, array(arr.ArrayVal[i])...)
 		}
 	}

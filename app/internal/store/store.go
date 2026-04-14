@@ -2,6 +2,7 @@ package store
 
 import (
 	"fmt"
+	"net"
 	"sync"
 	"time"
 )
@@ -9,7 +10,7 @@ import (
 type RedisValueType int
 
 const (
-	String RedisValueType = iota
+	StringVal RedisValueType = iota
 	List
 	Stream
 )
@@ -38,6 +39,8 @@ type Redis struct {
 	c map[string]*RedisChan
 }
 
+var subscribedClients map[net.Conn][]chan string
+
 var redis_store Redis
 
 func Init() Redis {
@@ -59,7 +62,7 @@ func (r *Redis) Type(key string) (string, error) {
 	}
 
 	switch redisVal.Type {
-	case String:
+	case StringVal:
 		return "string", nil
 	case List:
 		return "list", nil

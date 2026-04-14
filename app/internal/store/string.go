@@ -14,7 +14,7 @@ func (r Redis) SetString(key string, val string, PX int) {
 	}
 
 	r.m[key] = &RedisValue{
-		Type:   String,
+		Type:   StringVal,
 		String: val,
 		Expiry: expiryTime,
 	}

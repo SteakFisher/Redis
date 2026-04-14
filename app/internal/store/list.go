@@ -6,10 +6,19 @@ import (
 	"time"
 )
 
+type RedisDataType int
+
+const (
+	String RedisDataType = iota
+	Integer
+	Array
+)
+
 type StringArr struct {
-	StringVal string
-	ArrayVal  []StringArr
-	IsString  bool
+	StringVal  string
+	ArrayVal   []StringArr
+	IntegerVal int
+	Type       RedisDataType
 }
 
 func (r Redis) SetArray(key string, val []string, prepend bool) int {
@@ -143,9 +152,9 @@ func (r Redis) BPop(key string, waitTime int) (StringArr, error) {
 
 	if err == nil {
 		return StringArr{
-			IsString: false,
+			Type: Array,
 			ArrayVal: append([]StringArr{{
-				IsString:  true,
+				Type:      String,
 				StringVal: key,
 			}}, arr.ArrayVal...),
 		}, nil
@@ -180,15 +189,15 @@ func (r Redis) BPop(key string, waitTime int) (StringArr, error) {
 
 		if err != nil {
 			return StringArr{
-				IsString: false,
+				Type:     Array,
 				ArrayVal: nil,
 			}, err
 		}
 
 		return StringArr{
-			IsString: false,
+			Type: Array,
 			ArrayVal: append([]StringArr{{
-				IsString:  true,
+				Type:      String,
 				StringVal: key,
 			}}, arr.ArrayVal...),
 		}, err
@@ -207,7 +216,7 @@ func (r Redis) BPop(key string, waitTime int) (StringArr, error) {
 		chanVal.mu.Unlock()
 
 		return StringArr{
-			IsString: false,
+			Type:     Array,
 			ArrayVal: nil,
 		}, fmt.Errorf("TIMEOUT")
 	}
@@ -215,13 +224,13 @@ func (r Redis) BPop(key string, waitTime int) (StringArr, error) {
 
 func convertToStringArr(arr []string) StringArr {
 	returnArr := StringArr{
-		IsString: false,
+		Type: Array,
 	}
 
 	for _, v := range arr {
 		returnArr.ArrayVal = append(returnArr.ArrayVal, StringArr{
 			StringVal: v,
-			IsString:  true,
+			Type:      String,
 		})
 	}
 
