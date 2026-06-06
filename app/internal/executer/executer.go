@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/SteakFisher/Redis/app/internal/config"
 	"github.com/SteakFisher/Redis/app/internal/parser"
 	"github.com/SteakFisher/Redis/app/internal/store"
 )
@@ -17,6 +18,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 	iterator := slices.Values(parsed)
 	next, stop := iter.Pull(iterator)
 
+	Config := config.Init()
 	Redis := store.Init()
 
 	defer stop()
@@ -515,6 +517,48 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 			}
 
 			return integer(length)
+
+		// Config cmds
+		case "config":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("Action not mentioned in config cmd")
+				return bulk_error()
+			}
+
+			action := string(parsedValue.Data)
+
+			switch strings.ToLower(action) {
+			case "get":
+				parsedValue, valid = next()
+
+				if !valid {
+					fmt.Println("Option not mentioned in config get cmd")
+					return bulk_error()
+				}
+
+				option := string(parsedValue.Data)
+				val := Config.Get(option)
+
+				return Array(store.StringArr{
+					Type: store.Array,
+					ArrayVal: []store.StringArr{
+						{
+							Type:      store.String,
+							StringVal: option,
+						},
+						{
+							Type:      store.String,
+							StringVal: val,
+						},
+					},
+				})
+
+			default:
+				fmt.Println("Uknown config cmd")
+				return null_array()
+			}
 
 		default:
 			fmt.Println("Unknown Execution Cmd")
