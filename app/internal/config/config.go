@@ -15,10 +15,9 @@ type Config struct {
 
 var config Config
 
-func Init() Config {
-	dir, _ := os.Getwd()
-
+func Init() *Config {
 	if config == (Config{}) {
+		dir, _ := os.Getwd()
 		config = Config{
 			dir:            dir,
 			appendonly:     "no",
@@ -28,10 +27,10 @@ func Init() Config {
 		}
 	}
 
-	return config
+	return &config
 }
 
-func (c Config) Get(option string) string {
+func (c *Config) Get(option string) string {
 	switch strings.ToLower(option) {
 	case "dir":
 		return c.dir
@@ -50,5 +49,30 @@ func (c Config) Get(option string) string {
 
 	default:
 		return ""
+	}
+}
+
+func (c *Config) Set(option string, val *string) {
+	if *val == "" {
+		return
+	}
+
+	switch strings.ToLower(option) {
+	case "dir":
+		c.dir = *val
+
+	case "appendonly":
+		c.appendonly = *val
+
+	case "appenddirname":
+		c.appenddirname = *val
+
+	case "appendfilename":
+		c.appendfilename = *val
+
+	case "appendfsync":
+		c.appendfsync = *val
+
+	default:
 	}
 }

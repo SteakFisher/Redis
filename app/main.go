@@ -1,19 +1,37 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net"
 	"os"
 	"sync"
 
 	"github.com/SteakFisher/Redis/app/internal/client"
+	"github.com/SteakFisher/Redis/app/internal/config"
 	"github.com/SteakFisher/Redis/app/internal/pubsub"
 )
 
 func main() {
 
 	var wg sync.WaitGroup
+	Config := config.Init()
 
+	dirPtr := flag.String("dir", "", "")
+	appendOnlyPtr := flag.String("appendonly", "", "")
+	appendDirNamePtr := flag.String("appenddirname", "", "")
+	appendFileNamePtr := flag.String("appendfilename", "", "")
+	appendFSyncPtr := flag.String("appendfsync", "", "")
+
+	flag.Parse()
+
+	Config.Set("dir", dirPtr)
+	Config.Set("appendonly", appendOnlyPtr)
+	Config.Set("appenddirname", appendDirNamePtr)
+	Config.Set("appendfilename", appendFileNamePtr)
+	Config.Set("appendfsync", appendFSyncPtr)
+
+	config.Init()
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
