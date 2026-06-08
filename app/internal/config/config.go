@@ -2,7 +2,6 @@ package config
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"strings"
 )
@@ -54,7 +53,6 @@ func (c *Config) Init() {
 			manifestFile, _ := os.Create(manifestFileName)
 			defer manifestFile.Close()
 			manifestFile.WriteString("file " + c.appendfilename + ".1.incr.aof seq 1 type i")
-			fmt.Println("file " + c.appendfilename + ".1.incr.aof seq 1 type i")
 		}
 	}
 }
