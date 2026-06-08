@@ -2,6 +2,7 @@ package config
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -44,8 +45,16 @@ func (c *Config) Init() {
 		}
 
 		if c.appendfilename != "" {
-			file, _ := os.Create(c.dir + "/" + c.appenddirname + "/" + c.appendfilename + ".1.incr.aof")
-			defer file.Close()
+			baseFileName := c.dir + "/" + c.appenddirname + "/" + c.appendfilename
+			appendFileName := baseFileName + ".1.incr.aof"
+			appendFile, _ := os.Create(appendFileName)
+			defer appendFile.Close()
+
+			manifestFileName := baseFileName + ".manifest"
+			manifestFile, _ := os.Create(manifestFileName)
+			defer manifestFile.Close()
+			manifestFile.WriteString("file " + c.appendfilename + ".1.incr.aof seq 1 type i")
+			fmt.Println("file " + c.appendfilename + ".1.incr.aof seq 1 type i")
 		}
 	}
 }
