@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"strings"
 )
@@ -15,7 +16,7 @@ type Config struct {
 
 var config Config
 
-func Init() *Config {
+func Default() *Config {
 	if config == (Config{}) {
 		dir, _ := os.Getwd()
 		config = Config{
@@ -28,6 +29,20 @@ func Init() *Config {
 	}
 
 	return &config
+}
+
+func (c *Config) Init() {
+	if c.appendonly == "yes" {
+		if (c.dir != "") && (c.appenddirname != "") {
+			dirName := c.dir + "/" + c.appenddirname
+
+			stat, err := os.Stat(dirName)
+
+			if errors.Is(err, os.ErrNotExist) || !stat.IsDir() {
+				os.Mkdir(dirName, 0755)
+			}
+		}
+	}
 }
 
 func (c *Config) Get(option string) string {

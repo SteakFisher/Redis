@@ -18,7 +18,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) []byte {
 	iterator := slices.Values(parsed)
 	next, stop := iter.Pull(iterator)
 
-	Config := config.Init()
+	Config := config.Default()
 	Redis := store.Init()
 
 	defer stop()

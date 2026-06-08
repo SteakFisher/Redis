@@ -15,7 +15,7 @@ import (
 func main() {
 
 	var wg sync.WaitGroup
-	Config := config.Init()
+	Config := config.Default()
 
 	dirPtr := flag.String("dir", "", "")
 	appendOnlyPtr := flag.String("appendonly", "", "")
@@ -31,7 +31,8 @@ func main() {
 	Config.Set("appendfilename", appendFileNamePtr)
 	Config.Set("appendfsync", appendFSyncPtr)
 
-	config.Init()
+	Config.Init()
+
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")
 
