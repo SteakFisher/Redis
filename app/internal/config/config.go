@@ -42,6 +42,11 @@ func (c *Config) Init() {
 				os.Mkdir(dirName, 0755)
 			}
 		}
+
+		if c.appendfilename != "" {
+			file, _ := os.Create(c.dir + "/" + c.appenddirname + "/" + c.appendfilename + ".1.incr.aof")
+			defer file.Close()
+		}
 	}
 }
 
