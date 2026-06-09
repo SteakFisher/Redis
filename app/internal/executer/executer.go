@@ -614,8 +614,7 @@ func BuildAOF() {
 
 	var dummyConn net.Conn
 	for count < n {
-		fmt.Println(string(readBytes[:n]))
-		i, parsedArray := parser.Parse(readBytes[:n])
+		i, parsedArray := parser.Parse(readBytes[count:n])
 		Execute(parsedArray, dummyConn)
 
 		count += i
