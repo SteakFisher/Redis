@@ -1,6 +1,7 @@
 package executer
 
 import (
+	"bufio"
 	"fmt"
 	"iter"
 	"net"
@@ -564,6 +565,60 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			fmt.Println("Unknown Execution Cmd")
 			return null_array(), false
 		}
+	}
+}
+
+func BuildAOF() {
+	Config := config.Default()
+
+	baseFileName := Config.Get("dir") + "/" + Config.Get("appenddirname") + "/" + Config.Get("appendfilename")
+
+	manifestFileName := baseFileName + ".manifest"
+	manifestFile, err := os.Open(manifestFileName)
+
+	if err != nil {
+		fmt.Println("Manifest file error", err)
+	}
+	defer manifestFile.Close()
+
+	scanner := bufio.NewScanner(manifestFile)
+	fileName := ""
+	for scanner.Scan() {
+		words := strings.Fields(scanner.Text())
+		flag := false
+
+		for i, word := range words {
+			if word == "type" && words[i+1] == "i" {
+				flag = true
+				break
+			}
+		}
+
+		if flag == false {
+			continue
+		}
+
+		for i, word := range words {
+			if word == "file" {
+				fileName = words[i+1]
+				break
+			}
+		}
+	}
+
+	recreationFile, _ := os.Open(Config.Get("dir") + "/" + Config.Get("appenddirname") + "/" + fileName)
+
+	readBytes := make([]byte, 4096)
+	n, _ := recreationFile.Read(readBytes)
+	count := 0
+
+	var dummyConn net.Conn
+	for count < n {
+		fmt.Println(string(readBytes[:n]))
+		i, parsedArray := parser.Parse(readBytes[:n])
+		Execute(parsedArray, dummyConn)
+
+		count += i
 	}
 }
 

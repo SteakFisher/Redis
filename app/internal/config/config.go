@@ -46,11 +46,11 @@ func (c *Config) Init() {
 		if c.appendfilename != "" {
 			baseFileName := c.dir + "/" + c.appenddirname + "/" + c.appendfilename
 			appendFileName := baseFileName + ".1.incr.aof"
-			appendFile, _ := os.Create(appendFileName)
-			defer appendFile.Close()
+			appendFile, _ := os.OpenFile(appendFileName, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
+			appendFile.Close()
 
 			manifestFileName := baseFileName + ".manifest"
-			manifestFile, _ := os.Create(manifestFileName)
+			manifestFile, _ := os.OpenFile(manifestFileName, os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0644)
 			defer manifestFile.Close()
 			manifestFile.WriteString("file " + c.appendfilename + ".1.incr.aof seq 1 type i")
 		}

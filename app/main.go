@@ -9,6 +9,7 @@ import (
 
 	"github.com/SteakFisher/Redis/app/internal/client"
 	"github.com/SteakFisher/Redis/app/internal/config"
+	"github.com/SteakFisher/Redis/app/internal/executer"
 	"github.com/SteakFisher/Redis/app/internal/pubsub"
 )
 
@@ -32,6 +33,8 @@ func main() {
 	Config.Set("appendfsync", appendFSyncPtr)
 
 	Config.Init()
+
+	executer.BuildAOF()
 
 	// You can use print statements as follows for debugging, they'll be visible when running tests.
 	fmt.Println("Logs from your program will appear here!")

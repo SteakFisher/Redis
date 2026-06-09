@@ -23,7 +23,7 @@ func (r Redis) SetString(key string, val string, PX int) {
 func (r Redis) Get(key string) (string, error) {
 	val := r.m[key]
 
-	if val.String == "" {
+	if val == nil || val.String == "" {
 		return "", fmt.Errorf("Key doesn't exist: %s", key)
 	}
 
