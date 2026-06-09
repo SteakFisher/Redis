@@ -561,6 +561,24 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 				return null_array(), false
 			}
 
+		case "incr":
+			parsedValue, valid = next()
+
+			if !valid {
+				fmt.Println("Key not mentioned in INCR cmd")
+				return bulk_error(), false
+			}
+
+			key := string(parsedValue.Data)
+
+			val, err := Redis.Incr(key)
+
+			if err != nil {
+				return simple_error(err.Error()), false
+			}
+
+			return integer(val), true
+
 		default:
 			fmt.Println("Unknown Execution Cmd")
 			return null_array(), false

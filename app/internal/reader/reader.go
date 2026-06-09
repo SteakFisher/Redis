@@ -29,9 +29,7 @@ func Read(conn net.Conn) {
 
 		ret, isWrite := executer.Execute(parsedArray, conn)
 
-		fmt.Println(isWrite)
-
-		if isWrite {
+		if isWrite && Config.Get("appendonly") == "yes" {
 			baseFileName := Config.Get("dir") + "/" + Config.Get("appenddirname") + "/" + Config.Get("appendfilename")
 			appendFileName := baseFileName + ".1.incr.aof"
 			appendFile, err := os.OpenFile(appendFileName, os.O_APPEND|os.O_WRONLY, os.ModeAppend)
