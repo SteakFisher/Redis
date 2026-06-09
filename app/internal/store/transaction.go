@@ -28,7 +28,7 @@ func (r Redis) Incr(key string) (int, error) {
 		return 0, fmt.Errorf("ERR value is not an integer or out of range")
 	}
 
-	val.String = string(num + 1)
+	val.String = strconv.Itoa(num + 1)
 
 	r.m[key] = val
 
