@@ -28,6 +28,13 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 		return subscribedClient(conn, next), false
 	}
 
+	_, ok := store.TransactingClients[conn]
+
+	if ok {
+		Redis.QueueTransaction(conn, parsed)
+		return simple("QUEUED"), false
+	}
+
 	for {
 		parsedValue, valid := next()
 
@@ -578,6 +585,20 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			}
 
 			return integer(val), true
+
+		case "multi":
+			Redis.Multi(conn)
+			return simple("OK"), false
+		case "exec":
+			ret, err := Redis.Exec(conn)
+
+			if err != nil {
+				return simple_error(err.Error()), false
+			}
+
+			if len(ret) == 0 {
+				return Array(store.StringArr{}), false
+			}
 
 		default:
 			fmt.Println("Unknown Execution Cmd")

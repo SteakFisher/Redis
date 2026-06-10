@@ -5,6 +5,8 @@ import (
 	"net"
 	"sync"
 	"time"
+
+	"github.com/SteakFisher/Redis/app/internal/parser"
 )
 
 type RedisValueType int
@@ -45,6 +47,8 @@ var ChannelClient map[chan string][]net.Conn
 
 var NameChannel map[string]chan string
 
+var TransactingClients map[net.Conn][][]parser.RESP
+
 var redis_store Redis
 
 func Init() Redis {
@@ -65,6 +69,10 @@ func Init() Redis {
 
 	if NameChannel == nil {
 		NameChannel = make(map[string]chan string)
+	}
+
+	if TransactingClients == nil {
+		TransactingClients = make(map[net.Conn][][]parser.RESP)
 	}
 
 	return redis_store
