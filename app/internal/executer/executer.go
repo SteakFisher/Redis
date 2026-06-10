@@ -28,19 +28,21 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 		return subscribedClient(conn, next), false
 	}
 
-	_, ok := store.TransactingClients[conn]
-
-	if ok {
-		Redis.QueueTransaction(conn, parsed)
-		return simple("QUEUED"), false
-	}
-
 	for {
 		parsedValue, valid := next()
 
-		cmd := string(parsedValue.Data)
+		cmd := strings.ToLower(string(parsedValue.Data))
 
-		switch strings.ToLower(cmd) {
+		_, ok := store.TransactingClients[conn]
+
+		if ok && cmd != "exec" {
+			Redis.QueueTransaction(conn, parsed)
+			return simple("QUEUED"), false
+		} else if !ok && cmd == "exec" {
+			return simple_error("ERR EXEC without MULTI"), false
+		}
+		
+		switch cmd {
 		// Health check cmds
 		case "echo":
 			parsedValue, valid := next()
@@ -590,11 +592,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			Redis.Multi(conn)
 			return simple("OK"), false
 		case "exec":
-			ret, err := Redis.Exec(conn)
-
-			if err != nil {
-				return simple_error(err.Error()), false
-			}
+			ret, _ := Redis.Exec(conn)
 
 			if len(ret) == 0 {
 				return Array(store.StringArr{}), false

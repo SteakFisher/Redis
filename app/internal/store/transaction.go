@@ -1,7 +1,6 @@
 package store
 
 import (
-	"fmt"
 	"net"
 
 	"github.com/SteakFisher/Redis/app/internal/parser"
@@ -16,11 +15,8 @@ func (r Redis) QueueTransaction(conn net.Conn, parsed []parser.RESP) {
 }
 
 func (r Redis) Exec(conn net.Conn) ([]byte, error) {
-	cmds, ok := TransactingClients[conn]
-
-	if !ok {
-		return []byte{}, fmt.Errorf("ERR EXEC without MULTI")
-	}
+	cmds, _ := TransactingClients[conn]
+	defer delete(TransactingClients, conn)
 
 	if len(cmds) == 0 {
 		return []byte{}, nil
