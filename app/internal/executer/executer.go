@@ -39,12 +39,15 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 		_, ok := store.TransactingClients[conn]
 
-		if ok && cmd != "exec" {
+		if ok && cmd != "exec" && cmd != "discard" {
 			Redis.QueueTransaction(conn, parsed)
 			return simple("QUEUED"), false
 		} else if !ok && cmd == "exec" {
 			return simple_error("ERR EXEC without MULTI"), false
+		} else if !ok && cmd == "discard" {
+			return simple_error("ERR DISCARD without MULTI"), false
 		}
+
 		switch cmd {
 		// Health check cmds
 		case "echo":
@@ -602,6 +605,9 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			}
 
 			return ret, true
+		case "discard":
+			Discard(conn)
+			return simple("OK"), false
 
 		default:
 			fmt.Println("Unknown Execution Cmd")

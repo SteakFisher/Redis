@@ -35,6 +35,10 @@ func Exec(conn net.Conn) ([]byte, error) {
 	return finalRet, nil
 }
 
+func Discard(conn net.Conn) {
+	delete(store.TransactingClients, conn)
+}
+
 func arrayFromBytes(arr [][]byte) []byte {
 	final := []byte(fmt.Sprintf("*%d\r\n", len(arr)))
 
