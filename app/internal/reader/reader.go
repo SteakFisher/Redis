@@ -12,9 +12,9 @@ import (
 
 func Read(conn net.Conn) {
 	Config := config.Default()
-	bytesIncoming := make([]byte, 4096)
 
 	for {
+		bytesIncoming := make([]byte, 4096)
 		n, err := conn.Read(bytesIncoming)
 
 		if err != nil {

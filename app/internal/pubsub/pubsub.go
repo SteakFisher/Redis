@@ -1,8 +1,6 @@
 package pubsub
 
 import (
-	"fmt"
-
 	"github.com/SteakFisher/Redis/app/internal/executer"
 	"github.com/SteakFisher/Redis/app/internal/store"
 )
@@ -20,9 +18,6 @@ func Pubsub() {
 			message := <-channel
 			clients := store.ChannelClient[channel]
 			for _, v := range clients {
-
-				fmt.Println(clients)
-
 				v.Write(executer.Array(store.StringArr{
 					Type: store.Array,
 					ArrayVal: []store.StringArr{

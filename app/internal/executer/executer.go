@@ -33,6 +33,10 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 		cmd := strings.ToLower(string(parsedValue.Data))
 
+		if cmd == "command" {
+			return simple(""), true
+		}
+
 		_, ok := store.TransactingClients[conn]
 
 		if ok && cmd != "exec" {
@@ -41,7 +45,6 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 		} else if !ok && cmd == "exec" {
 			return simple_error("ERR EXEC without MULTI"), false
 		}
-		
 		switch cmd {
 		// Health check cmds
 		case "echo":
@@ -592,11 +595,13 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			Redis.Multi(conn)
 			return simple("OK"), false
 		case "exec":
-			ret, _ := Redis.Exec(conn)
+			ret, _ := Exec(conn)
 
 			if len(ret) == 0 {
 				return Array(store.StringArr{}), false
 			}
+
+			return ret, true
 
 		default:
 			fmt.Println("Unknown Execution Cmd")
