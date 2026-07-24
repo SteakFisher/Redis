@@ -39,9 +39,12 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool, string) {
 
 		_, ok := store.TransactingClients[conn]
 
-		if ok && cmd != "exec" && cmd != "discard" {
+		if ok && cmd != "exec" && cmd != "discard" && cmd != "watch" {
 			Redis.QueueTransaction(conn, parsed)
 			return simple("QUEUED"), false, cmd
+		} else if ok && cmd == "watch" {
+			Discard(conn)
+			return simple_error("ERR WATCH inside MULTI is not allowed"), false, cmd
 		} else if !ok && cmd == "exec" {
 			return simple_error("ERR EXEC without MULTI"), false, cmd
 		} else if !ok && cmd == "discard" {
