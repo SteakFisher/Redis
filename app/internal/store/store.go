@@ -49,6 +49,9 @@ var NameChannel map[string]chan string
 
 var TransactingClients map[net.Conn][][]parser.RESP
 
+var WatchedKeys map[string][]net.Conn
+var FailTransactionConnections map[net.Conn]struct{}
+
 var redis_store Redis
 
 func Init() Redis {
@@ -73,6 +76,14 @@ func Init() Redis {
 
 	if TransactingClients == nil {
 		TransactingClients = make(map[net.Conn][][]parser.RESP)
+	}
+
+	if WatchedKeys == nil {
+		WatchedKeys = make(map[string][]net.Conn)
+	}
+
+	if FailTransactionConnections == nil {
+		FailTransactionConnections = make(map[net.Conn]struct{})
 	}
 
 	return redis_store

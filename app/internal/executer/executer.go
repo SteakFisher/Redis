@@ -15,7 +15,7 @@ import (
 	"github.com/SteakFisher/Redis/app/internal/store"
 )
 
-func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
+func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool, string) {
 	iterator := slices.Values(parsed)
 	next, stop := iter.Pull(iterator)
 
@@ -25,7 +25,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 	defer stop()
 
 	if store.ClientName[conn] != nil {
-		return subscribedClient(conn, next), false
+		return subscribedClient(conn, next), false, ""
 	}
 
 	for {
@@ -34,18 +34,18 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 		cmd := strings.ToLower(string(parsedValue.Data))
 
 		if cmd == "command" {
-			return simple(""), true
+			return simple(""), true, cmd
 		}
 
 		_, ok := store.TransactingClients[conn]
 
 		if ok && cmd != "exec" && cmd != "discard" {
 			Redis.QueueTransaction(conn, parsed)
-			return simple("QUEUED"), false
+			return simple("QUEUED"), false, cmd
 		} else if !ok && cmd == "exec" {
-			return simple_error("ERR EXEC without MULTI"), false
+			return simple_error("ERR EXEC without MULTI"), false, cmd
 		} else if !ok && cmd == "discard" {
-			return simple_error("ERR DISCARD without MULTI"), false
+			return simple_error("ERR DISCARD without MULTI"), false, cmd
 		}
 
 		switch cmd {
@@ -55,12 +55,12 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("No echo message mentioned mentioned")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
-			return bulk(string(parsedValue.Data)), false
+			return bulk(string(parsedValue.Data)), false, cmd
 		case "ping":
-			return simple("PONG"), false
+			return simple("PONG"), false, cmd
 
 		// General cmds
 		case "type":
@@ -68,7 +68,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("No list key mentioned in rpush cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			key := string(parsedValue.Data)
@@ -78,10 +78,10 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			if err != nil {
 				fmt.Println(err)
 
-				return simple("none"), false
+				return simple("none"), false, cmd
 			}
 
-			return simple(redisType), false
+			return simple(redisType), false, cmd
 
 		// Map cmds
 		case "set":
@@ -89,7 +89,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("No key mentioned in set cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			key := string(parsedValue.Data)
@@ -98,7 +98,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("No value mentioned in set cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			value := string(parsedValue.Data)
@@ -116,26 +116,26 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 					if !valid {
 						fmt.Println("No PX value mentioned in set cmd")
-						return bulk_error(), false
+						return bulk_error(), false, cmd
 					}
 
 					PX, err = strconv.Atoi(string(parsedValue.Data))
 
 					if err != nil {
-						return bulk_error(), false
+						return bulk_error(), false, cmd
 					}
 				case "ex":
 					parsedValue, valid := next()
 
 					if !valid {
 						fmt.Println("No EX value mentioned in set cmd")
-						return bulk_error(), false
+						return bulk_error(), false, cmd
 					}
 
 					EX, err := strconv.Atoi(string(parsedValue.Data))
 
 					if err != nil {
-						return bulk_error(), false
+						return bulk_error(), false, cmd
 					}
 
 					PX = EX * 1000
@@ -143,23 +143,23 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			}
 
 			Redis.SetString(key, value, PX)
-			return simple("OK"), true
+			return simple("OK"), true, cmd
 		case "get":
 			parsedValue, valid = next()
 
 			if !valid {
 				fmt.Println("No key mentioned in get cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			val, err := Redis.Get(string(parsedValue.Data))
 
 			if err != nil {
 				fmt.Println(err)
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
-			return bulk(val), false
+			return bulk(val), false, cmd
 
 		// List cmds
 		case "rpush":
@@ -167,7 +167,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("No list key mentioned in rpush cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			key := string(parsedValue.Data)
@@ -183,13 +183,13 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			arrayLen := Redis.SetArray(key, val, false)
 
-			return integer(arrayLen), true
+			return integer(arrayLen), true, cmd
 		case "lpush":
 			parsedValue, valid = next()
 
 			if !valid {
 				fmt.Println("No list key mentioned in rpush cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			key := string(parsedValue.Data)
@@ -205,13 +205,13 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			arrayLen := Redis.SetArray(key, val, true)
 
-			return integer(arrayLen), true
+			return integer(arrayLen), true, cmd
 		case "lrange":
 			parsedValue, valid = next()
 
 			if !valid {
 				fmt.Println("No list key mentioned in rpush cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			key := string(parsedValue.Data)
@@ -220,7 +220,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("Start value not mentioned")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			start, err := strconv.Atoi(string(parsedValue.Data))
@@ -233,7 +233,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("Stop value not mentioned")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			stop, err := strconv.Atoi(string(parsedValue.Data))
@@ -247,27 +247,27 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if err != nil {
 				fmt.Println(err)
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
-			return Array(newArr), false
+			return Array(newArr), false, cmd
 		case "llen":
 			parsedValue, valid = next()
 
 			if !valid {
 				fmt.Println("No list key mentioned in llen cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			key := string(parsedValue.Data)
 
-			return integer(Redis.Length(key)), false
+			return integer(Redis.Length(key)), false, cmd
 		case "lpop":
 			parsedValue, valid = next()
 
 			if !valid {
 				fmt.Println("No list key mentioned in lpop cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			key := string(parsedValue.Data)
@@ -281,7 +281,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 				if err != nil {
 					fmt.Println("Pop length isn't a number")
-					return bulk_error(), false
+					return bulk_error(), false, cmd
 				}
 			}
 
@@ -289,20 +289,20 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if err != nil {
 				fmt.Println("List key doesn't exist")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			if len(elems.ArrayVal) == 1 {
-				return bulk(elems.ArrayVal[0].StringVal), true
+				return bulk(elems.ArrayVal[0].StringVal), true, cmd
 			} else {
-				return Array(elems), true
+				return Array(elems), true, cmd
 			}
 		case "blpop":
 			parsedValue, valid = next()
 
 			if !valid {
 				fmt.Println("No list key mentioned in blpop cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			key := string(parsedValue.Data)
@@ -311,7 +311,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("No list key mentioned in blpop cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			numFloat, err := strconv.ParseFloat(string(parsedValue.Data), 5)
@@ -319,17 +319,17 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if err != nil {
 				fmt.Printf("Timeout value is not a number.")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			val, err := Redis.BPop(key, num)
 
 			if err != nil {
 				fmt.Println(err)
-				return null_array(), false
+				return null_array(), false, cmd
 			}
 
-			return Array(val), true
+			return Array(val), true, cmd
 
 		// Stream cmds
 		case "xadd":
@@ -337,7 +337,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("No stream key mentioned in xadd cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			streamKey := string(parsedValue.Data)
@@ -346,7 +346,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("No stream key value mentioned in xadd cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			entryID := string(parsedValue.Data)
@@ -360,7 +360,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 				parsedValue, valid = next()
 				if !valid {
 					fmt.Println("No corresponding value for key: ", keyArr[len(keyArr)-1])
-					return bulk_error(), false
+					return bulk_error(), false, cmd
 				}
 
 				valArr = append(valArr, string(parsedValue.Data))
@@ -369,16 +369,16 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			id, err := Redis.StreamAdd(streamKey, entryID, keyArr, valArr)
 
 			if err != nil {
-				return simple_error(err.Error()), false
+				return simple_error(err.Error()), false, cmd
 			}
 
-			return bulk(id), true
+			return bulk(id), true, cmd
 		case "xrange":
 			parsedValue, valid = next()
 
 			if !valid {
 				fmt.Println("No stream key mentioned in xrange cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			streamKey := string(parsedValue.Data)
@@ -387,7 +387,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("No stream key value mentioned in xrange cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			start := string(parsedValue.Data)
@@ -400,7 +400,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			end := string(parsedValue.Data)
 
-			return Array(Redis.StreamRange(streamKey, start, end)), false
+			return Array(Redis.StreamRange(streamKey, start, end)), false, cmd
 		case "xread":
 			parsedValue, valid = next()
 
@@ -419,7 +419,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 					if !valid {
 						fmt.Println("No stream IDs mentioned in xread streams cmd")
-						return bulk_error(), false
+						return bulk_error(), false, cmd
 					}
 
 					_, err := strconv.Atoi(strings.Split(string(parsedValue.Data), `-`)[0])
@@ -444,23 +444,23 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 				if len(idArr) != len(keyArr) {
 					fmt.Println("Length of both arrays aren't equal")
-					return bulk_error(), false
+					return bulk_error(), false, cmd
 				}
 
-				return Array(Redis.StreamRead(keyArr, idArr)), false
+				return Array(Redis.StreamRead(keyArr, idArr)), false, cmd
 			case "block":
 				parsedValue, valid = next()
 
 				if !valid {
 					fmt.Println("Block time not mentioned")
-					return bulk_error(), false
+					return bulk_error(), false, cmd
 				}
 
 				block, err := strconv.Atoi(string(parsedValue.Data))
 
 				if err != nil {
 					fmt.Println("Block time not an int")
-					return bulk_error(), false
+					return bulk_error(), false, cmd
 				}
 
 				next()
@@ -469,7 +469,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 				if !valid {
 					fmt.Println("Key not mentioned in xread cmd")
-					return bulk_error(), false
+					return bulk_error(), false, cmd
 				}
 
 				key := string(parsedValue.Data)
@@ -478,7 +478,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 				if !valid {
 					fmt.Println("Key not mentioned in xread cmd")
-					return bulk_error(), false
+					return bulk_error(), false, cmd
 				}
 
 				id := string(parsedValue.Data)
@@ -486,10 +486,10 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 				smth, err := Redis.StreamBlockRead(key, id, block)
 
 				if err != nil {
-					return null_array(), false
+					return null_array(), false, cmd
 				}
 
-				return Array(smth), false
+				return Array(smth), false, cmd
 
 			default:
 				fmt.Println("Unknown XREAD Cmd")
@@ -501,18 +501,18 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			parsedValue, valid = next()
 
 			if !valid {
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			ch := string(parsedValue.Data)
 
-			return Array(store.Subscribe(conn, ch)), false
+			return Array(store.Subscribe(conn, ch)), false, cmd
 		case "publish":
 			parsedValue, valid = next()
 
 			if !valid {
 				fmt.Println("Channel name not mentioned in publish cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			channelName := string(parsedValue.Data)
@@ -521,7 +521,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("Message not mentioned in publish cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			message := string(parsedValue.Data)
@@ -529,10 +529,10 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			length, err := store.Publish(channelName, message)
 
 			if err != nil {
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
-			return integer(length), false
+			return integer(length), false, cmd
 
 		// Config cmds
 		case "config":
@@ -540,7 +540,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("Action not mentioned in config cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			action := string(parsedValue.Data)
@@ -551,7 +551,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 				if !valid {
 					fmt.Println("Option not mentioned in config get cmd")
-					return bulk_error(), false
+					return bulk_error(), false, cmd
 				}
 
 				option := string(parsedValue.Data)
@@ -569,11 +569,11 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 							StringVal: val,
 						},
 					},
-				}), false
+				}), false, cmd
 
 			default:
 				fmt.Println("Uknown config cmd")
-				return null_array(), false
+				return null_array(), false, cmd
 			}
 
 		case "incr":
@@ -581,7 +581,7 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 
 			if !valid {
 				fmt.Println("Key not mentioned in INCR cmd")
-				return bulk_error(), false
+				return bulk_error(), false, cmd
 			}
 
 			key := string(parsedValue.Data)
@@ -589,29 +589,61 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool) {
 			val, err := Redis.Incr(key)
 
 			if err != nil {
-				return simple_error(err.Error()), false
+				return simple_error(err.Error()), false, cmd
 			}
 
-			return integer(val), true
+			return integer(val), true, cmd
 
 		case "multi":
 			Redis.Multi(conn)
-			return simple("OK"), false
+			return simple("OK"), false, cmd
 		case "exec":
+			_, ok := store.FailTransactionConnections[conn]
+
+			fmt.Println(conn)
+
+			if ok {
+				delete(store.FailTransactionConnections, conn)
+				return null_array(), false, cmd
+			}
+
 			ret, _ := Exec(conn)
 
 			if len(ret) == 0 {
-				return Array(store.StringArr{}), false
+				return Array(store.StringArr{}), false, cmd
 			}
 
-			return ret, true
+			return ret, true, cmd
 		case "discard":
 			Discard(conn)
-			return simple("OK"), false
+			return simple("OK"), false, cmd
+
+		case "watch":
+			parsedValue, valid := next()
+
+			if !valid {
+				fmt.Println("Key not mentioned in WATCH cmd")
+				return null_array(), false, cmd
+			}
+
+			keys := []string{string(parsedValue.Data)}
+
+			for {
+				parsedValue, valid = next()
+
+				if !valid {
+					break
+				}
+
+				keys = append(keys, string(parsedValue.Data))
+			}
+
+			Redis.Watch(conn, keys)
+			return simple("OK"), false, cmd
 
 		default:
 			fmt.Println("Unknown Execution Cmd")
-			return null_array(), false
+			return null_array(), false, cmd
 		}
 	}
 }
@@ -663,7 +695,7 @@ func BuildAOF() {
 	var dummyConn net.Conn
 	for count < n {
 		i, parsedArray := parser.Parse(readBytes[count:n])
-		Execute(parsedArray, dummyConn)
+		Execute(parsedArray, dummyConn) //nolint:errcheck
 
 		count += i
 	}

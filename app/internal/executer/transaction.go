@@ -19,14 +19,7 @@ func Exec(conn net.Conn) ([]byte, error) {
 	var final [][]byte
 
 	for _, v := range cmds {
-
-		fmt.Println("start")
-		for _, s := range v {
-			fmt.Println(string(s.Data))
-		}
-		fmt.Println("end")
-
-		ret, _ := Execute(v, conn)
+		ret, _, _ := Execute(v, conn)
 		final = append(final, ret)
 	}
 

@@ -8,6 +8,7 @@ import (
 	"github.com/SteakFisher/Redis/app/internal/config"
 	"github.com/SteakFisher/Redis/app/internal/executer"
 	"github.com/SteakFisher/Redis/app/internal/parser"
+	"github.com/SteakFisher/Redis/app/internal/store"
 )
 
 func Read(conn net.Conn) {
@@ -27,7 +28,19 @@ func Read(conn net.Conn) {
 
 		_, parsedArray := parser.Parse(bytesIncoming[:n])
 
-		ret, isWrite := executer.Execute(parsedArray, conn)
+		ret, isWrite, cmd := executer.Execute(parsedArray, conn)
+
+		if isWrite {
+			val, ok := store.WatchedKeys[cmd]
+
+			if ok {
+				for _, v := range val {
+					store.FailTransactionConnections[v] = struct{}{}
+				}
+			}
+
+			delete(store.WatchedKeys, cmd)
+		}
 
 		if isWrite && Config.Get("appendonly") == "yes" {
 			baseFileName := Config.Get("dir") + "/" + Config.Get("appenddirname") + "/" + Config.Get("appendfilename")
