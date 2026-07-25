@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strings"
 
 	"github.com/SteakFisher/Redis/app/internal/config"
 	"github.com/SteakFisher/Redis/app/internal/executer"
@@ -28,18 +29,22 @@ func Read(conn net.Conn) {
 
 		_, parsedArray := parser.Parse(bytesIncoming[:n])
 
-		ret, isWrite, cmd := executer.Execute(parsedArray, conn)
+		ret, isWrite, keys := executer.Execute(parsedArray, conn)
 
 		if isWrite {
-			val, ok := store.WatchedKeys[cmd]
+			for _, key := range keys {
+				val, ok := store.WatchedKeys[strings.ToLower(key)]
+				fmt.Println(key)
 
-			if ok {
-				for _, v := range val {
-					store.FailTransactionConnections[v] = struct{}{}
+				if ok {
+					for _, v := range val {
+						store.FailTransactionConnections[v] = struct{}{}
+					}
+					fmt.Println("fail", store.FailTransactionConnections)
+
+					delete(store.WatchedKeys, key)
 				}
 			}
-
-			delete(store.WatchedKeys, cmd)
 		}
 
 		if isWrite && Config.Get("appendonly") == "yes" {

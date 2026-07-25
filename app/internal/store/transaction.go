@@ -1,6 +1,7 @@
 package store
 
 import (
+	"fmt"
 	"net"
 
 	"github.com/SteakFisher/Redis/app/internal/parser"
@@ -16,6 +17,8 @@ func (r Redis) QueueTransaction(conn net.Conn, parsed []parser.RESP) {
 
 func (r Redis) Watch(conn net.Conn, keys []string) {
 	for _, v := range keys {
+		fmt.Println("key: ", keys)
 		WatchedKeys[v] = append(WatchedKeys[v], conn)
+		fmt.Println(WatchedKeys)
 	}
 }
