@@ -621,6 +621,11 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool, []string) {
 			Discard(conn)
 			return simple("OK"), false, nil
 
+		case "unwatch":
+			Redis.Unwatch(conn)
+			delete(store.FailTransactionConnections, conn)
+			return simple("OK"), false, nil
+
 		case "watch":
 			parsedValue, valid := next()
 
@@ -643,7 +648,6 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool, []string) {
 
 			Redis.Watch(conn, keys)
 			return simple("OK"), false, keys
-
 		default:
 			fmt.Println("Unknown Execution Cmd")
 			return null_array(), false, nil

@@ -34,13 +34,11 @@ func Read(conn net.Conn) {
 		if isWrite {
 			for _, key := range keys {
 				val, ok := store.WatchedKeys[strings.ToLower(key)]
-				fmt.Println(key)
 
 				if ok {
 					for _, v := range val {
 						store.FailTransactionConnections[v] = struct{}{}
 					}
-					fmt.Println("fail", store.FailTransactionConnections)
 
 					delete(store.WatchedKeys, key)
 				}
