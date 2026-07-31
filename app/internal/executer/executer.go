@@ -610,7 +610,11 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool, []string) {
 				return null_array(), false, nil
 			}
 
-			ret, _ := Exec(conn)
+			ret, err := Exec(conn)
+
+			if err != nil {
+				return bulk_error(), false, nil
+			}
 
 			if len(ret) == 0 {
 				return Array(store.StringArr{}), false, nil
@@ -618,6 +622,8 @@ func Execute(parsed []parser.RESP, conn net.Conn) ([]byte, bool, []string) {
 
 			return ret, true, nil
 		case "discard":
+			Redis.Unwatch(conn)
+			delete(store.FailTransactionConnections, conn)
 			Discard(conn)
 			return simple("OK"), false, nil
 
